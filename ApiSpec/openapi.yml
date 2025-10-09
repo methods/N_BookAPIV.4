@@ -1,0 +1,455 @@
+dotopenapi: 3.0.3
+info:
+  title: Book Collection API
+  version: v1.0.0
+  description: A simple API to manage a collection of books and their reservations.
+  termsOfService: 'https://github.com/methods/N_BookAPIV.2'
+  contact:
+    email: booksAPI@example.com
+  license:
+    name: MIT License
+    url: 'https://github.com/methods/N_BookAPIV.2/blob/main/LICENSE.md'
+servers:
+  - url: http://localhost:8080
+    description: Development server
+tags:
+  - name: Books
+    description: Operations related to books
+  - name: Reservations
+    description: Operations for creating and managing book reservations.
+  - name: Authentication
+    description: Endpoints for user authentication and session management.
+components:
+  schemas:
+    BookInput:
+      type: object
+      required:
+        - title
+        - synopsis
+        - author
+      properties:
+        title:
+          type: string
+          description: The title of the book.
+          example: "The Hitchhiker's Guide to the Galaxy"
+        synopsis:
+          type: string
+          description: A brief summary of the book.
+          example: "Seconds before the Earth is demolished to make way for a galactic freeway..."
+        author:
+          type: string
+          description: The author of the book.
+          example: "Douglas Adams"
+    BookLinks:
+      type: object
+      required:
+        - self
+      properties:
+        self:
+          type: string
+          description: Link to the book resource itself.
+          example: "/books/123e4567-e89b-12d3-a456-426614174000"
+        reservations:
+          type: string
+          description: Link to the collection of reservations for this book.
+          example: "/books/123e4567-e89b-12d3-a456-426614174000/reservations"
+    BookOutput:
+      allOf:
+        - $ref: '#/components/schemas/BookInput'
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The unique identifier for the book (server-generated).
+          readOnly: true
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        links:
+          $ref: '#/components/schemas/BookLinks'
+          readOnly: true
+    BookListResponse:
+      type: object
+      properties:
+        totalCount:
+          type: integer
+          description: The total number of books available in the collection that match the query.
+          example: 5432
+        offset:
+          type: integer
+          description: The offset that was used for this page of results.
+          example: 0
+        limit:
+          type: integer
+          description: The limit that was used for this page of results.
+          example: 20
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookOutput'
+    ReservationOutput:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The unique identifier for the reservation.
+          readOnly: true
+          example: "abc-123-def-456"
+        bookId:
+          type: string
+          format: uuid
+          description: The ID of the book being reserved.
+          readOnly: true
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        userId:
+          type: string
+          format: uuid
+          readOnly: true
+          description: The ID of the user who made the reservation.
+        state:
+          type: string
+          description: The current state of the reservation.
+          readOnly: true
+          example: "reserved"
+        reservedAt:
+          type: string
+          format: date-time
+          description: The UTC timestamp when the reservation was created.
+          readOnly: true
+          example: "2025-07-10T14:48:00.000Z"
+    ReservationListResponse:
+      type: object
+      properties:
+        totalCount:
+          type: integer
+        offset:
+          type: integer
+        limit:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReservationOutput'
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: A message describing the error.
+  securitySchemes:
+    cookieAuth:
+      type: http
+      scheme: cookie
+      description: Session cookie obtained after a successful login.
+  responses:
+    NotFound:
+      description: The specified resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Invalid input provided.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication failed or is missing.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: User is authenticated but does not have permissions for the resource.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+paths:
+  /books:
+    get:
+      tags:
+        - Books
+      summary: Returns a paginated list of books
+      operationId: getAllBooks
+      parameters:
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: A paginated list of books.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      tags:
+        - Books
+      summary: Add a new book
+      operationId: addBook
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookInput'
+      responses:
+        '201':
+          description: Book created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookOutput'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /books/{bookId}:
+    parameters:
+      - name: bookId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags:
+        - Books
+      summary: Get a book by ID
+      operationId: getBookById
+      responses:
+        '200':
+          description: Successfully retrieved the book.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookOutput'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Books
+      summary: Update a book
+      operationId: updateBook
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookInput'
+      responses:
+        '200':
+          description: Book updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookOutput'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Books
+      summary: Delete a book by ID
+      operationId: deleteBookById
+      security:
+        - cookieAuth: []
+      responses:
+        '204':
+          description: Book deleted successfully.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /books/{bookId}/reservations:
+    parameters:
+      - name: bookId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags:
+        - Reservations
+      summary: Create a reservation for a book
+      operationId: createReservation
+      security:
+        - cookieAuth: []
+      responses:
+        '201':
+          description: Reservation created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationOutput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /reservations:
+    get:
+      tags:
+        - Reservations
+      summary: List reservations
+      operationId: listReservations
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: A paginated list of reservations.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /books/{bookId}/reservations/{reservationId}:
+    parameters:
+      - name: bookId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: reservationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags:
+        - Reservations
+      summary: Get a specific reservation
+      operationId: getReservationById
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Successfully retrieved the reservation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationOutput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Reservations
+      summary: Cancel a reservation
+      operationId: cancelReservationById
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Reservation cancelled successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationOutput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /auth/login:
+    get:
+      tags:
+        - Authentication
+      summary: Initiate Login Flow (Browser Only)
+      operationId: login
+      responses:
+        '302':
+          description: Redirect to the Google authentication page.
+  /auth/callback:
+    get:
+      tags:
+        - Authentication
+      summary: OAuth Callback Endpoint (Browser Only)
+      operationId: handleCallback
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Successful authentication, redirect to dashboard.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/logout:
+    get:
+      tags:
+        - Authentication
+      summary: Log Out User (Browser Only)
+      operationId: logout
+      security:
+        - cookieAuth: []
+      responses:
+        '302':
+          description: Successful logout, redirect to homepage.
+        '401':
+          $ref: '#/components/responses/Unauthorized'

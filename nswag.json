@@ -1,0 +1,33 @@
+{
+  "runtime": "Net90",
+  "defaultVariables": null,
+  "documentGenerator": {
+    "fromDocument": {
+      "url": "ApiSpec/openapi.yml",
+      "output": null
+    }
+  },
+  "codeGenerators": {
+    "openApiToCSharpController": {
+      "controllerBaseClass": "Microsoft.AspNetCore.Mvc.ControllerBase",
+      "className": "{controller}",
+      "controllerStyle": "Abstract",
+      "useCancellationToken": false,
+      "useOptionalParameters": false,
+      "aspNetCore": true,
+      "operationGenerationMode": "MultipleClientsFromOperationId",
+      "generateModelValidationAttributes": true,
+      "referencedNamespaces": [
+        "BookApi.NET.DTOs"
+      ],
+      "output": "Controllers/Generated/{controller}Controller.cs",
+      "namespace": "BookApi.NET.Controllers.Generated"
+    },
+    "openApiToCSharpClient": {
+      "generateDtoTypes": true,
+      "jsonLibrary": "SystemTextJson",
+      "output": "DTOs/GeneratedDtos.cs",
+      "namespace": "BookApi.NET.DTOs"
+    }
+  }
+}
