@@ -1,0 +1,23 @@
+{
+  "runtime": "Net90",
+  "defaultVariables": null,
+  "documentGenerator": {
+    "fromDocument": {
+      "url": "ApiSpec/openapi.yml",
+      "output": null
+    }
+  },
+  "codeGenerators": {
+    "openApiToCSharpController": {
+      "className": "{controller}",
+      "controllerBaseClass": "Microsoft.AspNetCore.Mvc.ControllerBase",
+      "controllerStyle": "Abstract",
+      "operationGenerationMode": "MultipleClientsFromFirstTagAndPathSegments",
+      "aspNetCore": true,
+      "useOptionalParameters": false,
+      "generateModelValidationAttributes": true,
+      "output": "Controllers/Generated/Controller.cs",
+      "namespace": "BookApi.NET.Controllers.Generated"
+    }
+  }
+}
