@@ -1,4 +1,4 @@
-dotopenapi: 3.0.3
+openapi: 3.0.3
 info:
   title: Book Collection API
   version: v1.0.0
@@ -331,7 +331,6 @@ paths:
           schema:
             type: integer
             minimum: 0
-            default: 0
         - name: limit
           in: query
           required: false
@@ -339,7 +338,6 @@ paths:
             type: integer
             minimum: 1
             maximum: 100
-            default: 20
         - name: userId
           in: query
           required: false

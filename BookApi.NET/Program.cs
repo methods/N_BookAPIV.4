@@ -2,6 +2,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers()
+    .AddApplicationPart(typeof(Program).Assembly) 
     .AddNewtonsoftJson();
 
 builder.Services.AddEndpointsApiExplorer();
@@ -19,9 +20,13 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 app.MapControllers();
 
 app.Run();
 
+public partial class Program { }
