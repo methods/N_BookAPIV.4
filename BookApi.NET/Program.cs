@@ -1,3 +1,7 @@
+using BookApi.NET.Services;
+using BookApi.NET.Models;
+using BookApi.NET.Middleware;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -7,6 +11,9 @@ builder.Services.AddControllers()
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddSingleton<IBookRepository, BookRepository>();
+builder.Services.AddScoped<BookService>();
+builder.Services.AddScoped<BookMapper>();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -24,6 +31,8 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
 }
+
+app.UseMiddleware<ExceptionHandlerMiddleware>();
 
 app.MapControllers();
 

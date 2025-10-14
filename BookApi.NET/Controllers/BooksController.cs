@@ -3,20 +3,33 @@ using BookApi.NET.Controllers.Generated;
 using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using BookApi.NET.Services;
 
 namespace BookApi.NET.Controllers;
 
 [ApiController]
 public class BooksController : BooksControllerBase
 {
+    private readonly BookService _bookService;
+    private readonly BookMapper _bookMapper;
+    public BooksController(BookService bookService, BookMapper bookMapper)
+    {
+        _bookService = bookService;
+        _bookMapper = bookMapper;
+    }
+
     public override Task BooksDelete([BindRequired] Guid bookId)
     {
         throw new NotImplementedException();
     }
 
-    public override Task<BookOutput> BooksGet([BindRequired] Guid bookId)
+    public override async Task<BookOutput> BooksGet([BindRequired] Guid bookId)
     {
-        throw new NotImplementedException();
+        var book = await _bookService.GetBookByIdAsync(bookId);
+
+        var bookOutput = _bookMapper.ToBookOutput(book);
+
+        return bookOutput;
     }
 
     public override Task<Generated.BookListResponse> BooksGet([FromQuery] int? offset = 0, [FromQuery] int? limit = 20)
