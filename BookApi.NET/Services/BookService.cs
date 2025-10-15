@@ -4,7 +4,7 @@ namespace BookApi.NET.Services;
 
 public class BookNotFoundException : Exception
 {
-    public BookNotFoundException(Guid Id) : base("Book not found with id: {Id}") { }
+    public BookNotFoundException(Guid Id) : base($"Book not found with id: {Id}") { }
 }
 
 public class BookService
