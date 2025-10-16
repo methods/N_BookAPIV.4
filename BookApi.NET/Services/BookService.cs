@@ -34,4 +34,16 @@ public class BookService
 
         return newBook;
     }
+
+    public async Task<Book> UpdateBookAsync(BookInput bookInput, Guid Id)
+    {
+        var bookToUpdate = await GetBookByIdAsync(Id);
+
+        bookToUpdate.Title = bookInput.Title;
+        bookToUpdate.Author = bookInput.Author;
+        bookToUpdate.Synopsis = bookInput.Synopsis;
+
+        await _bookRepository.UpdateAsync(bookToUpdate);
+        return bookToUpdate;
+    }
 }

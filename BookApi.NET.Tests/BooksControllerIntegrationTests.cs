@@ -65,7 +65,7 @@ public class BooksControllerIntegrationTests : IClassFixture<WebApplicationFacto
     }
 
     [Fact]
-    public async Task PostBook_WhenBookIsValid_CreatesBookAndReturns202()
+    public async Task PostBook_WhenBookIsValid_CreatesBookAndReturns201()
     {
         // GIVEN a valid BookInput DTO
         var bookInput = new BookInput
@@ -92,6 +92,59 @@ public class BooksControllerIntegrationTests : IClassFixture<WebApplicationFacto
         string expectedLocation = $"/books/{responseBody.Id}";
         Assert.EndsWith(expectedLocation, response.Headers.Location.ToString());
     }
+
+    [Fact]
+    public async Task PutBook_WhenBookAndBookInputAreValid_ReturnsOKAndModifiedBookContent()
+    {
+        // GIVEN a book exists in the database
+        using var scope = _factory.Services.CreateScope();
+        var bookRepository = scope.ServiceProvider.GetRequiredService<IBookRepository>();
+
+        Book testBook = new Book("Test Book", "Test Author", "Test Synopsis");
+        await bookRepository.CreateAsync(testBook);
+        var bookId = testBook.Id;
+
+        // AND a valid BookInput DTO
+        var bookInput = new BookInput
+        {
+            Title = "Modified Book",
+            Author = "Modified Author",
+            Synopsis = "Modified Synopsis"
+        };
+
+        // WHEN the PUT /books endpoint is called
+        var response = await _client.PutAsJsonAsync($"/books/{bookId}", bookInput);
+
+        // THEN the response status code should be 200 OK
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        // AND the JSON response body should match the modified book
+        var responseBody = await response.Content.ReadFromJsonAsync<BookOutput>();
+        Assert.NotNull(responseBody);
+        Assert.Equal(bookInput.Title, responseBody.Title);
+        Assert.NotEqual(Guid.Empty, responseBody.Id);
+    }
+
+    [Fact]
+public async Task PutBook_WhenBookDoesNotExist_ReturnsNotFound()
+{
+    // GIVEN a non-existent book ID
+    var nonExistentId = Guid.NewGuid();
+
+    // AND a valid DTO for the update
+    var bookInput = new BookInput
+        {
+            Title = "Modified Book",
+            Author = "Modified Author",
+            Synopsis = "Modified Synopsis"
+        };
+
+    // WHEN a PUT request is made to that non-existent ID
+    var response = await _client.PutAsJsonAsync($"/books/{nonExistentId}", bookInput);
+
+    // THEN the response status code should be 404 Not Found
+    Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+}
 }
 
 public record ErrorDto(string Error);

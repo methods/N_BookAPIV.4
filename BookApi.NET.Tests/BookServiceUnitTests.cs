@@ -125,4 +125,38 @@ public class BookServiceUnitTests
         // AND an exception message should be present
         Assert.Contains("cannot be null or blank", exception.Message);
     }
+
+
+    [Fact]
+    public async Task UpdateBookAsync_WhenBookExists_UpdatesAndSavesBook()
+    {
+        // GIVEN a valid book ID and an updated BookInput DTO
+        var bookId = Guid.NewGuid();
+        var bookInput = new BookInput
+            {
+                Title = "Modified Book",
+                Author = "Modified Author",
+                Synopsis = "Modified Synopsis"
+            };
+
+        // AND a repository that will return an existing book for that ID
+        var existingBook = new Book("Old Title", "Old Author", "Old Synopsis") { Id = bookId };
+        _mockBookRepository
+            .Setup(repo => repo.GetByIdAsync(bookId))
+            .ReturnsAsync(existingBook);
+
+        // WHEN the service method is called
+        var result = await _bookService.UpdateBookAsync(bookInput, bookId);
+
+        // THEN the repository's UpdateAsync method should be called once
+        _mockBookRepository.Verify(repo => repo.UpdateAsync(It.Is<Book>(b =>
+            b.Id == bookId &&
+            b.Title == "Modified Book" &&
+            b.Author == "Modified Author"
+        )), Times.Once);
+
+        // AND the method should return the updated book object
+        Assert.NotNull(result);
+        Assert.Equal("Modified Book", result.Title);
+    }
 }

@@ -48,8 +48,12 @@ public class BooksController : BooksControllerBase
         return CreatedAtAction(nameof(BooksGet), new { bookId = bookOutput.Id }, bookOutput);
     }
 
-    public override Task<ActionResult<Generated.BookOutput>> BooksPut([BindRequired, FromBody] Generated.BookInput body, [BindRequired] Guid bookId)
+    public override async Task<ActionResult<Generated.BookOutput>> BooksPut([BindRequired, FromBody] Generated.BookInput body, [BindRequired] Guid bookId)
     {
-        throw new NotImplementedException();
+        var updatedBook = await _bookService.UpdateBookAsync(body, bookId);
+
+        var bookOutput = _bookMapper.ToBookOutput(updatedBook);
+
+        return bookOutput;
     }
 }
