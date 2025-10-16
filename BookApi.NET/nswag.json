@@ -16,6 +16,7 @@
       "aspNetCore": true,
       "useOptionalParameters": false,
       "generateModelValidationAttributes": true,
+      "useActionResultType": true, 
       "output": "Controllers/Generated/Controller.cs",
       "namespace": "BookApi.NET.Controllers.Generated"
     }

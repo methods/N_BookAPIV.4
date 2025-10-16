@@ -1,3 +1,4 @@
+using BookApi.NET.Controllers.Generated;
 using BookApi.NET.Models;
 
 namespace BookApi.NET.Services;
@@ -24,5 +25,13 @@ public class BookService
             throw new BookNotFoundException(Id);
         }
         return book;
+    }
+
+    public async Task<Book> CreateBookAsync(BookInput bookInput)
+    {
+        Book newBook = new Book(bookInput.Title, bookInput.Author, bookInput.Synopsis);
+        await _bookRepository.CreateAsync(newBook);
+
+        return newBook;
     }
 }

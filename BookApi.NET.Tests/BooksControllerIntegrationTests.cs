@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using BookApi.NET.Controllers.Generated;
 using BookApi.NET.Models;
 using BookApi.NET.Services;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -61,6 +62,35 @@ public class BooksControllerIntegrationTests : IClassFixture<WebApplicationFacto
         var error = await response.Content.ReadFromJsonAsync<ErrorDto>();
         Assert.NotNull(error);
         Assert.Equal($"Book not found with id: {nonExistentBookId}", error.Error);
+    }
+
+    [Fact]
+    public async Task PostBook_WhenBookIsValid_CreatesBookAndReturns202()
+    {
+        // GIVEN a valid BookInput DTO
+        var bookInput = new BookInput
+        {
+            Title = "Neuromancer",
+            Author = "William Gibson",
+            Synopsis = "A classic cyberpunk novel."
+        };
+
+        // WHEN the POST /books endpoint is called
+        var response = await _client.PostAsJsonAsync("/books", bookInput);
+
+        // THEN the response status code should be 201 Created
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        // AND the response body should contain the new book object with bookId
+        var responseBody = await response.Content.ReadFromJsonAsync<BookOutput>();
+        Assert.NotNull(responseBody);
+        Assert.NotEqual(Guid.Empty, responseBody.Id);
+        Assert.Equal("Neuromancer", responseBody.Title);
+
+        // AND the location header should point to the new resource
+        Assert.NotNull(response.Headers.Location);
+        string expectedLocation = $"/books/{responseBody.Id}";
+        Assert.EndsWith(expectedLocation, response.Headers.Location.ToString());
     }
 }
 

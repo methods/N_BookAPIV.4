@@ -28,6 +28,15 @@ public class Book
 
     public Book(string title, string author, string synopsis)
     {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            throw new ArgumentException("Title cannot be null or blank.", nameof(title));
+        }
+        if (string.IsNullOrWhiteSpace(author))
+        {
+            throw new ArgumentException("Author cannot be null or blank.", nameof(author));
+        }
+    
         Id = Guid.NewGuid();
         Title = title;
         Author = author;

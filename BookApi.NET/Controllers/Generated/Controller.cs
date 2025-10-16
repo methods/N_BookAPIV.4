@@ -33,35 +33,35 @@ namespace BookApi.NET.Controllers.Generated
         /// </summary>
         /// <returns>A paginated list of books.</returns>
         [Microsoft.AspNetCore.Mvc.HttpGet, Microsoft.AspNetCore.Mvc.Route("books")]
-        public abstract System.Threading.Tasks.Task<BookListResponse> BooksGet([Microsoft.AspNetCore.Mvc.FromQuery] int? offset = 0, [Microsoft.AspNetCore.Mvc.FromQuery] int? limit = 20);
+        public abstract System.Threading.Tasks.Task<Microsoft.AspNetCore.Mvc.ActionResult<BookListResponse>> BooksGet([Microsoft.AspNetCore.Mvc.FromQuery] int? offset = 0, [Microsoft.AspNetCore.Mvc.FromQuery] int? limit = 20);
 
         /// <summary>
         /// Add a new book
         /// </summary>
         /// <returns>Book created successfully.</returns>
         [Microsoft.AspNetCore.Mvc.HttpPost, Microsoft.AspNetCore.Mvc.Route("books")]
-        public abstract System.Threading.Tasks.Task<BookOutput> BooksPost([Microsoft.AspNetCore.Mvc.FromBody] [Microsoft.AspNetCore.Mvc.ModelBinding.BindRequired] BookInput body);
+        public abstract System.Threading.Tasks.Task<Microsoft.AspNetCore.Mvc.ActionResult<BookOutput>> BooksPost([Microsoft.AspNetCore.Mvc.FromBody] [Microsoft.AspNetCore.Mvc.ModelBinding.BindRequired] BookInput body);
 
         /// <summary>
         /// Get a book by ID
         /// </summary>
         /// <returns>Successfully retrieved the book.</returns>
         [Microsoft.AspNetCore.Mvc.HttpGet, Microsoft.AspNetCore.Mvc.Route("books/{bookId}")]
-        public abstract System.Threading.Tasks.Task<BookOutput> BooksGet([Microsoft.AspNetCore.Mvc.ModelBinding.BindRequired] System.Guid bookId);
+        public abstract System.Threading.Tasks.Task<Microsoft.AspNetCore.Mvc.ActionResult<BookOutput>> BooksGet([Microsoft.AspNetCore.Mvc.ModelBinding.BindRequired] System.Guid bookId);
 
         /// <summary>
         /// Update a book
         /// </summary>
         /// <returns>Book updated successfully.</returns>
         [Microsoft.AspNetCore.Mvc.HttpPut, Microsoft.AspNetCore.Mvc.Route("books/{bookId}")]
-        public abstract System.Threading.Tasks.Task<BookOutput> BooksPut([Microsoft.AspNetCore.Mvc.FromBody] [Microsoft.AspNetCore.Mvc.ModelBinding.BindRequired] BookInput body, [Microsoft.AspNetCore.Mvc.ModelBinding.BindRequired] System.Guid bookId);
+        public abstract System.Threading.Tasks.Task<Microsoft.AspNetCore.Mvc.ActionResult<BookOutput>> BooksPut([Microsoft.AspNetCore.Mvc.FromBody] [Microsoft.AspNetCore.Mvc.ModelBinding.BindRequired] BookInput body, [Microsoft.AspNetCore.Mvc.ModelBinding.BindRequired] System.Guid bookId);
 
         /// <summary>
         /// Delete a book by ID
         /// </summary>
         /// <returns>Book deleted successfully.</returns>
         [Microsoft.AspNetCore.Mvc.HttpDelete, Microsoft.AspNetCore.Mvc.Route("books/{bookId}")]
-        public abstract System.Threading.Tasks.Task BooksDelete([Microsoft.AspNetCore.Mvc.ModelBinding.BindRequired] System.Guid bookId);
+        public abstract System.Threading.Tasks.Task<Microsoft.AspNetCore.Mvc.IActionResult> BooksDelete([Microsoft.AspNetCore.Mvc.ModelBinding.BindRequired] System.Guid bookId);
 
     }
 
@@ -74,28 +74,28 @@ namespace BookApi.NET.Controllers.Generated
         /// </summary>
         /// <returns>Reservation created successfully.</returns>
         [Microsoft.AspNetCore.Mvc.HttpPost, Microsoft.AspNetCore.Mvc.Route("books/{bookId}/reservations")]
-        public abstract System.Threading.Tasks.Task<ReservationOutput> ReservationsPost([Microsoft.AspNetCore.Mvc.ModelBinding.BindRequired] System.Guid bookId);
+        public abstract System.Threading.Tasks.Task<Microsoft.AspNetCore.Mvc.ActionResult<ReservationOutput>> ReservationsPost([Microsoft.AspNetCore.Mvc.ModelBinding.BindRequired] System.Guid bookId);
 
         /// <summary>
         /// List reservations
         /// </summary>
         /// <returns>A paginated list of reservations.</returns>
         [Microsoft.AspNetCore.Mvc.HttpGet, Microsoft.AspNetCore.Mvc.Route("reservations")]
-        public abstract System.Threading.Tasks.Task<ReservationListResponse> ReservationsGet([Microsoft.AspNetCore.Mvc.FromQuery] int? offset, [Microsoft.AspNetCore.Mvc.FromQuery] int? limit, [Microsoft.AspNetCore.Mvc.FromQuery] System.Guid? userId);
+        public abstract System.Threading.Tasks.Task<Microsoft.AspNetCore.Mvc.ActionResult<ReservationListResponse>> ReservationsGet([Microsoft.AspNetCore.Mvc.FromQuery] int? offset, [Microsoft.AspNetCore.Mvc.FromQuery] int? limit, [Microsoft.AspNetCore.Mvc.FromQuery] System.Guid? userId);
 
         /// <summary>
         /// Get a specific reservation
         /// </summary>
         /// <returns>Successfully retrieved the reservation.</returns>
         [Microsoft.AspNetCore.Mvc.HttpGet, Microsoft.AspNetCore.Mvc.Route("books/{bookId}/reservations/{reservationId}")]
-        public abstract System.Threading.Tasks.Task<ReservationOutput> ReservationsGet([Microsoft.AspNetCore.Mvc.ModelBinding.BindRequired] System.Guid bookId, [Microsoft.AspNetCore.Mvc.ModelBinding.BindRequired] System.Guid reservationId);
+        public abstract System.Threading.Tasks.Task<Microsoft.AspNetCore.Mvc.ActionResult<ReservationOutput>> ReservationsGet([Microsoft.AspNetCore.Mvc.ModelBinding.BindRequired] System.Guid bookId, [Microsoft.AspNetCore.Mvc.ModelBinding.BindRequired] System.Guid reservationId);
 
         /// <summary>
         /// Cancel a reservation
         /// </summary>
         /// <returns>Reservation cancelled successfully.</returns>
         [Microsoft.AspNetCore.Mvc.HttpDelete, Microsoft.AspNetCore.Mvc.Route("books/{bookId}/reservations/{reservationId}")]
-        public abstract System.Threading.Tasks.Task<ReservationOutput> ReservationsDelete([Microsoft.AspNetCore.Mvc.ModelBinding.BindRequired] System.Guid bookId, [Microsoft.AspNetCore.Mvc.ModelBinding.BindRequired] System.Guid reservationId);
+        public abstract System.Threading.Tasks.Task<Microsoft.AspNetCore.Mvc.ActionResult<ReservationOutput>> ReservationsDelete([Microsoft.AspNetCore.Mvc.ModelBinding.BindRequired] System.Guid bookId, [Microsoft.AspNetCore.Mvc.ModelBinding.BindRequired] System.Guid reservationId);
 
     }
 
@@ -107,19 +107,19 @@ namespace BookApi.NET.Controllers.Generated
         /// Initiate Login Flow (Browser Only)
         /// </summary>
         [Microsoft.AspNetCore.Mvc.HttpGet, Microsoft.AspNetCore.Mvc.Route("auth/login")]
-        public abstract System.Threading.Tasks.Task Login();
+        public abstract System.Threading.Tasks.Task<Microsoft.AspNetCore.Mvc.IActionResult> Login();
 
         /// <summary>
         /// OAuth Callback Endpoint (Browser Only)
         /// </summary>
         [Microsoft.AspNetCore.Mvc.HttpGet, Microsoft.AspNetCore.Mvc.Route("auth/callback")]
-        public abstract System.Threading.Tasks.Task Callback([Microsoft.AspNetCore.Mvc.FromQuery] [Microsoft.AspNetCore.Mvc.ModelBinding.BindRequired] string code, [Microsoft.AspNetCore.Mvc.FromQuery] [Microsoft.AspNetCore.Mvc.ModelBinding.BindRequired] string state);
+        public abstract System.Threading.Tasks.Task<Microsoft.AspNetCore.Mvc.IActionResult> Callback([Microsoft.AspNetCore.Mvc.FromQuery] [Microsoft.AspNetCore.Mvc.ModelBinding.BindRequired] string code, [Microsoft.AspNetCore.Mvc.FromQuery] [Microsoft.AspNetCore.Mvc.ModelBinding.BindRequired] string state);
 
         /// <summary>
         /// Log Out User (Browser Only)
         /// </summary>
         [Microsoft.AspNetCore.Mvc.HttpGet, Microsoft.AspNetCore.Mvc.Route("auth/logout")]
-        public abstract System.Threading.Tasks.Task Logout();
+        public abstract System.Threading.Tasks.Task<Microsoft.AspNetCore.Mvc.IActionResult> Logout();
 
     }
 

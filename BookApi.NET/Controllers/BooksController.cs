@@ -4,6 +4,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using BookApi.NET.Services;
+using BookApi.NET.Models;
 
 namespace BookApi.NET.Controllers;
 
@@ -18,12 +19,12 @@ public class BooksController : BooksControllerBase
         _bookMapper = bookMapper;
     }
 
-    public override Task BooksDelete([BindRequired] Guid bookId)
+    public override Task<IActionResult> BooksDelete([BindRequired] Guid bookId)
     {
         throw new NotImplementedException();
     }
 
-    public override async Task<BookOutput> BooksGet([BindRequired] Guid bookId)
+    public override async Task<ActionResult<Generated.BookOutput>> BooksGet([BindRequired] Guid bookId)
     {
         var book = await _bookService.GetBookByIdAsync(bookId);
 
@@ -32,17 +33,22 @@ public class BooksController : BooksControllerBase
         return bookOutput;
     }
 
-    public override Task<Generated.BookListResponse> BooksGet([FromQuery] int? offset = 0, [FromQuery] int? limit = 20)
+    public override Task<ActionResult<Generated.BookListResponse>> BooksGet([FromQuery] int? offset = 0, [FromQuery] int? limit = 20)
     {
         throw new NotImplementedException();
     }
 
-    public override Task<Generated.BookOutput> BooksPost([BindRequired, FromBody] Generated.BookInput body)
+
+    public override async Task<ActionResult<Generated.BookOutput>> BooksPost([BindRequired, FromBody] Generated.BookInput body)
     {
-        throw new NotImplementedException();
+        var createdBook = await _bookService.CreateBookAsync(body);
+
+        var bookOutput = _bookMapper.ToBookOutput(createdBook);
+
+        return CreatedAtAction(nameof(BooksGet), new { bookId = bookOutput.Id }, bookOutput);
     }
 
-    public override Task<Generated.BookOutput> BooksPut([BindRequired, FromBody] Generated.BookInput body, [BindRequired] Guid bookId)
+    public override Task<ActionResult<Generated.BookOutput>> BooksPut([BindRequired, FromBody] Generated.BookInput body, [BindRequired] Guid bookId)
     {
         throw new NotImplementedException();
     }
