@@ -19,9 +19,10 @@ public class BooksController : BooksControllerBase
         _bookMapper = bookMapper;
     }
 
-    public override Task<IActionResult> BooksDelete([BindRequired] Guid bookId)
+    public override async Task<IActionResult> BooksDelete([BindRequired] Guid bookId)
     {
-        throw new NotImplementedException();
+        await _bookService.DeleteBookAsync(bookId);
+        return NoContent();
     }
 
     public override async Task<ActionResult<Generated.BookOutput>> BooksGet([BindRequired] Guid bookId)

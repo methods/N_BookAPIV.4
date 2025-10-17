@@ -46,4 +46,13 @@ public class BookService
         await _bookRepository.UpdateAsync(bookToUpdate);
         return bookToUpdate;
     }
+
+    public async Task DeleteBookAsync(Guid Id)
+    {
+        bool bookDeleted = await _bookRepository.DeleteAsync(Id);
+        if (!bookDeleted)
+        {
+            throw new BookNotFoundException(Id);
+        }
+    }
 }

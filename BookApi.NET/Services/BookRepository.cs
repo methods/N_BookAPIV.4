@@ -34,4 +34,14 @@ public class BookRepository : IBookRepository
 
         await _booksCollection.UpdateOneAsync(filter, update);
     }
+
+    public async Task<bool> DeleteAsync(Guid id)
+    {
+        // Set a filter for the Book that is to be deleted
+        var filter = Builders<Book>.Filter.Eq(b => b.Id, id);
+
+        var result = await _booksCollection.DeleteOneAsync(filter);
+
+        return result.DeletedCount == 1;
+    }
 }

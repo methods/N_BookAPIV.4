@@ -126,25 +126,47 @@ public class BooksControllerIntegrationTests : IClassFixture<WebApplicationFacto
     }
 
     [Fact]
-public async Task PutBook_WhenBookDoesNotExist_ReturnsNotFound()
-{
-    // GIVEN a non-existent book ID
-    var nonExistentId = Guid.NewGuid();
+    public async Task PutBook_WhenBookDoesNotExist_ReturnsNotFound()
+    {
+        // GIVEN a non-existent book ID
+        var nonExistentId = Guid.NewGuid();
 
-    // AND a valid DTO for the update
-    var bookInput = new BookInput
+        // AND a valid DTO for the update
+        var bookInput = new BookInput
         {
             Title = "Modified Book",
             Author = "Modified Author",
             Synopsis = "Modified Synopsis"
         };
 
-    // WHEN a PUT request is made to that non-existent ID
-    var response = await _client.PutAsJsonAsync($"/books/{nonExistentId}", bookInput);
+        // WHEN a PUT request is made to that non-existent ID
+        var response = await _client.PutAsJsonAsync($"/books/{nonExistentId}", bookInput);
 
-    // THEN the response status code should be 404 Not Found
-    Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-}
+        // THEN the response status code should be 404 Not Found
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteBook_WhenBookExists_Returns204Deleted()
+    {
+        // GIVEN a book exists in the database
+        using var scope = _factory.Services.CreateScope();
+        var bookRepository = scope.ServiceProvider.GetRequiredService<IBookRepository>();
+
+        Book testBook = new Book("Test Book", "Test Author", "Test Synopsis");
+        await bookRepository.CreateAsync(testBook);
+        var bookId = testBook.Id;
+
+        // WHEN a DELETE request is made to that book's Id
+        var response = await _client.DeleteAsync($"/books/{bookId}");
+
+        // THEN the response status code should be 204 Deleted
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        // AND the book should be gone from the database
+        var deletedBook = await bookRepository.GetByIdAsync(bookId);
+        Assert.Null(deletedBook);
+    }
 }
 
 public record ErrorDto(string Error);

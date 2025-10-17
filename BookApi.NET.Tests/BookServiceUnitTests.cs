@@ -133,11 +133,11 @@ public class BookServiceUnitTests
         // GIVEN a valid book ID and an updated BookInput DTO
         var bookId = Guid.NewGuid();
         var bookInput = new BookInput
-            {
-                Title = "Modified Book",
-                Author = "Modified Author",
-                Synopsis = "Modified Synopsis"
-            };
+        {
+            Title = "Modified Book",
+            Author = "Modified Author",
+            Synopsis = "Modified Synopsis"
+        };
 
         // AND a repository that will return an existing book for that ID
         var existingBook = new Book("Old Title", "Old Author", "Old Synopsis") { Id = bookId };
@@ -158,5 +158,42 @@ public class BookServiceUnitTests
         // AND the method should return the updated book object
         Assert.NotNull(result);
         Assert.Equal("Modified Book", result.Title);
+    }
+
+    [Fact]
+    public async Task DeleteBookAsync_WhenBookExists_CallsRepositoryDelete()
+    {
+        // GIVEN a valid book ID
+        var bookId = Guid.NewGuid();
+
+        // AND a mock repository that will report a successful deletion (returning true)
+        _mockBookRepository
+            .Setup(repo => repo.DeleteAsync(bookId))
+            .ReturnsAsync(true);
+
+        // WHEN the service method is called
+        await _bookService.DeleteBookAsync(bookId);
+
+        // THEN no exception should have been thrown (implicit)
+        // AND the repository method should have been called once
+        _mockBookRepository.Verify(repo => repo.DeleteAsync(bookId), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeleteBookAsync_WhenBookDoesNotExist_ThrowsBookNotFoundException()
+    {
+        // GIVEN a non-existent book ID
+        var nonExistentId = Guid.NewGuid();
+
+        // AND a mock repository that will report an unsuccessful deletion (returning false)
+        _mockBookRepository
+            .Setup(repo => repo.DeleteAsync(nonExistentId))
+            .ReturnsAsync(false);
+
+        // WHEN the service method is called
+        // THEN a BookNotFoundException should be thrown
+        await Assert.ThrowsAsync<BookNotFoundException>(
+            () => _bookService.DeleteBookAsync(nonExistentId)
+        );
     }
 }
