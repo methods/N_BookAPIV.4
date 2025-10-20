@@ -16,4 +16,22 @@ public class BookMapper
             Links = null
         };
     }
+
+    public BookListResponse ToBookListResponse(
+            List<Book> books,
+            long totalCount,
+            int offset,
+            int limit)
+    {
+        // Convert the list of Books to a list of BookOutput DTOs
+        var bookDtos = books.Select(ToBookOutput).ToList();
+
+        return new BookListResponse
+        {
+            Items = bookDtos,
+            TotalCount = (int)totalCount,
+            Offset = offset,
+            Limit = limit
+        };
+    }
 }

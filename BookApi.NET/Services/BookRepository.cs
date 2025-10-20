@@ -1,5 +1,7 @@
 using BookApi.NET.Controllers.Generated;
 using BookApi.NET.Models;
+using Microsoft.Extensions.Options;
+using Microsoft.VisualBasic;
 using MongoDB.Driver;
 
 namespace BookApi.NET.Services;
@@ -8,11 +10,10 @@ public class BookRepository : IBookRepository
 {
     private readonly IMongoCollection<Book> _booksCollection;
 
-    public BookRepository()
+    public BookRepository(IOptions<BookstoreDbSettings> dbSettings, IMongoClient mongoClient)
     {
-        var mongoClient = new MongoClient("mongodb://localhost:27017");
-        var mongoDatabase = mongoClient.GetDatabase("book-api-dotnet-dev");
-        _booksCollection = mongoDatabase.GetCollection<Book>("books");
+        var database = mongoClient.GetDatabase(dbSettings.Value.DatabaseName);
+        _booksCollection = database.GetCollection<Book>("books");
     }
 
     public async Task<Book?> GetByIdAsync(Guid id) =>
@@ -43,5 +44,17 @@ public class BookRepository : IBookRepository
         var result = await _booksCollection.DeleteOneAsync(filter);
 
         return result.DeletedCount == 1;
+    }
+
+    public async Task<(List<Book> Books, long TotalCount)> GetAllAsync(int offset, int limit)
+    {
+        var totalCount = await _booksCollection.CountDocumentsAsync(FilterDefinition<Book>.Empty);
+
+        var books = await _booksCollection.Find(FilterDefinition<Book>.Empty)
+            .Skip(offset)
+            .Limit(limit)
+            .ToListAsync();
+
+        return (books, totalCount);
     }
 }

@@ -12,7 +12,7 @@ using Xunit.Abstractions;
 
 namespace BookApi.NET.Tests;
 
-public class BooksControllerIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+public class BooksControllerIntegrationTests : IClassFixture<WebApplicationFactory<Program>>, IAsyncLifetime 
 {
     private readonly HttpClient _client;
     private readonly WebApplicationFactory<Program> _factory;
@@ -21,6 +21,12 @@ public class BooksControllerIntegrationTests : IClassFixture<WebApplicationFacto
         _factory = factory;
         _client = factory.CreateClient();
     }
+    public async Task InitializeAsync()
+    {
+        await DatabaseTestHelper.CleanDatabaseAsync(_factory.Services);
+    }
+
+    public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact] // (4) The xUnit equivalent of @Test
     public async Task GetBookById_WhenBookExists_ReturnsOKAndBookContent()
@@ -166,6 +172,36 @@ public class BooksControllerIntegrationTests : IClassFixture<WebApplicationFacto
         // AND the book should be gone from the database
         var deletedBook = await bookRepository.GetByIdAsync(bookId);
         Assert.Null(deletedBook);
+    }
+
+    [Fact]
+    public async Task GetBooks_WhenBooksExist_ReturnsOKAndListObjectOfBooks()
+    {
+        // GIVEN multiple books exist in the database
+        using var scope = _factory.Services.CreateScope();
+        var bookRepository = scope.ServiceProvider.GetRequiredService<IBookRepository>();
+
+        for (int i = 1; i <= 15; i++)
+        {
+            await bookRepository.CreateAsync(new Book("Book " + i, "Author " + i, "Synopsis " + i));
+        }
+
+        // WHEN a request is made for the 2nd page of books
+        var response = await _client.GetAsync("/books?offset=5&limit=5");
+
+        // THEN the response status code should be 200 OK
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        // AND the response body should contain a list of books with pagination information
+        var responseBody = await response.Content.ReadFromJsonAsync<BookListResponse>();
+
+        Assert.NotNull(responseBody);
+        Assert.Equal(15, responseBody.TotalCount);
+        Assert.Equal(5, responseBody.Offset);
+        Assert.Equal(5, responseBody.Limit);
+        Assert.NotNull(responseBody.Items);
+        Assert.Equal(5, responseBody.Items.Count);
+        Assert.Equal("Book 6", responseBody.Items[0].Title);
     }
 }
 

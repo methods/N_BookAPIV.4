@@ -55,4 +55,10 @@ public class BookService
             throw new BookNotFoundException(Id);
         }
     }
+
+    public async Task<(List<Book> Books, long TotalCount)> GetBooksAsync(int offset, int limit)
+    {
+        var booksListAndCount = await _bookRepository.GetAllAsync(offset, limit);
+        return booksListAndCount;
+    }
 }

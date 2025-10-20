@@ -9,4 +9,5 @@ public interface IBookRepository
     Task CreateAsync(Book newBook);
     Task UpdateAsync(Book updatedBook);
     Task<bool> DeleteAsync(Guid id);
+    Task<(List<Book> Books, long TotalCount)> GetAllAsync(int offset, int limit);
 }

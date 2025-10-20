@@ -1,6 +1,8 @@
 using BookApi.NET.Services;
 using BookApi.NET.Models;
 using BookApi.NET.Middleware;
+using MongoDB.Driver;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,9 +10,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers()
     .AddApplicationPart(typeof(Program).Assembly) 
     .AddNewtonsoftJson();
-
+builder.Services.Configure<BookstoreDbSettings>(
+    builder.Configuration.GetSection("BookstoreDbSettings"));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddSingleton<IMongoClient>(sp =>
+    new MongoClient(sp.GetRequiredService<IOptions<BookstoreDbSettings>>().Value.ConnectionString));
 builder.Services.AddSingleton<IBookRepository, BookRepository>();
 builder.Services.AddScoped<BookService>();
 builder.Services.AddScoped<BookMapper>();

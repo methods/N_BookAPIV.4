@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using BookApi.NET.Services;
 using BookApi.NET.Models;
+using MongoDB.Driver;
 
 namespace BookApi.NET.Controllers;
 
@@ -34,9 +35,17 @@ public class BooksController : BooksControllerBase
         return bookOutput;
     }
 
-    public override Task<ActionResult<Generated.BookListResponse>> BooksGet([FromQuery] int? offset = 0, [FromQuery] int? limit = 20)
+    public override async Task<ActionResult<Generated.BookListResponse>> BooksGet([FromQuery] int? offset = 0, [FromQuery] int? limit = 20)
     {
-        throw new NotImplementedException();
+
+        int effectiveOffset = offset ?? 0;
+        int effectiveLimit = limit ?? 0;
+
+        var (books, totalCount) = await _bookService.GetBooksAsync(effectiveOffset, effectiveLimit);
+
+        var responseDTO = _bookMapper.ToBookListResponse(books, totalCount, effectiveOffset, effectiveLimit);
+
+        return responseDTO;
     }
 
 
