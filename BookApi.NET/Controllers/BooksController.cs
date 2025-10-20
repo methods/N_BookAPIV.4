@@ -3,34 +3,67 @@ using BookApi.NET.Controllers.Generated;
 using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using BookApi.NET.Services;
+using BookApi.NET.Models;
+using MongoDB.Driver;
 
 namespace BookApi.NET.Controllers;
 
 [ApiController]
 public class BooksController : BooksControllerBase
 {
-    public override Task BooksDelete([BindRequired] Guid bookId)
+    private readonly BookService _bookService;
+    private readonly BookMapper _bookMapper;
+    public BooksController(BookService bookService, BookMapper bookMapper)
     {
-        throw new NotImplementedException();
+        _bookService = bookService;
+        _bookMapper = bookMapper;
     }
 
-    public override Task<BookOutput> BooksGet([BindRequired] Guid bookId)
+    public override async Task<IActionResult> BooksDelete([BindRequired] Guid bookId)
     {
-        throw new NotImplementedException();
+        await _bookService.DeleteBookAsync(bookId);
+        return NoContent();
     }
 
-    public override Task<Generated.BookListResponse> BooksGet([FromQuery] int? offset = 0, [FromQuery] int? limit = 20)
+    public override async Task<ActionResult<Generated.BookOutput>> BooksGet([BindRequired] Guid bookId)
     {
-        throw new NotImplementedException();
+        var book = await _bookService.GetBookByIdAsync(bookId);
+
+        var bookOutput = _bookMapper.ToBookOutput(book);
+
+        return bookOutput;
     }
 
-    public override Task<Generated.BookOutput> BooksPost([BindRequired, FromBody] Generated.BookInput body)
+    public override async Task<ActionResult<Generated.BookListResponse>> BooksGet([FromQuery] int? offset = 0, [FromQuery] int? limit = 20)
     {
-        throw new NotImplementedException();
+
+        int effectiveOffset = offset ?? 0;
+        int effectiveLimit = limit ?? 0;
+
+        var (books, totalCount) = await _bookService.GetBooksAsync(effectiveOffset, effectiveLimit);
+
+        var responseDTO = _bookMapper.ToBookListResponse(books, totalCount, effectiveOffset, effectiveLimit);
+
+        return responseDTO;
     }
 
-    public override Task<Generated.BookOutput> BooksPut([BindRequired, FromBody] Generated.BookInput body, [BindRequired] Guid bookId)
+
+    public override async Task<ActionResult<Generated.BookOutput>> BooksPost([BindRequired, FromBody] Generated.BookInput body)
     {
-        throw new NotImplementedException();
+        var createdBook = await _bookService.CreateBookAsync(body);
+
+        var bookOutput = _bookMapper.ToBookOutput(createdBook);
+
+        return CreatedAtAction(nameof(BooksGet), new { bookId = bookOutput.Id }, bookOutput);
+    }
+
+    public override async Task<ActionResult<Generated.BookOutput>> BooksPut([BindRequired, FromBody] Generated.BookInput body, [BindRequired] Guid bookId)
+    {
+        var updatedBook = await _bookService.UpdateBookAsync(body, bookId);
+
+        var bookOutput = _bookMapper.ToBookOutput(updatedBook);
+
+        return bookOutput;
     }
 }
