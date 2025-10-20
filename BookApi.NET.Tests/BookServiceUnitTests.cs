@@ -196,4 +196,30 @@ public class BookServiceUnitTests
             () => _bookService.DeleteBookAsync(nonExistentId)
         );
     }
+
+    [Fact]
+    public async Task GetBooksAsync_WithValidParams_CallsRepositoryAndReturnsData()
+    {
+        // GIVEN valid offset and int parameters
+        int offset = 5;
+        int limit = 10;
+
+        // AND a mock repository that will return a tuple of a list of books and a totalcount
+        var expectedBooks = new List<Book> { new Book("Title", "Author", "Synopsis") };
+        long expectedTotalCount = 25;
+        var repositoryResult = (Books: expectedBooks, TotalCount: expectedTotalCount);
+        _mockBookRepository
+        .Setup(repo => repo.GetAllAsync(offset, limit))
+        .ReturnsAsync(repositoryResult);
+
+        // WHEN the service method is called
+        var (resultBooks, resultTotalCount) = await _bookService.GetBooksAsync(offset, limit);
+
+        // THEN the repository should have been called once
+        _mockBookRepository.Verify(repo => repo.GetAllAsync(offset, limit), Times.Once);
+
+        // AND the data returned by the service should match the data from the repository
+        Assert.Equal(expectedBooks, resultBooks);
+        Assert.Equal(expectedTotalCount, resultTotalCount);
+    }
 }
