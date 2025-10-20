@@ -17,6 +17,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<IMongoClient>(sp =>
     new MongoClient(sp.GetRequiredService<IOptions<BookstoreDbSettings>>().Value.ConnectionString));
 builder.Services.AddSingleton<IBookRepository, BookRepository>();
+builder.Services.AddSingleton<IReservationRepository, ReservationRepository>();
 builder.Services.AddScoped<BookService>();
 builder.Services.AddScoped<BookMapper>();
 
