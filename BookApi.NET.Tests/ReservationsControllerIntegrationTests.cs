@@ -66,4 +66,16 @@ public class ReservationsControllerIntegrationTests : IClassFixture<WebApplicati
         Console.WriteLine(response.Headers.Location.ToString());
     }
 
+    [Fact]
+    public async Task CreateReservation_WhenBookDoesNotExist_ReturnsNotFound()
+    {
+        // GIVEN a book Id that does not exist in the database
+        var nonExistentBookId = Guid.NewGuid();
+
+        // WHEN the POST reservation endpoint is called
+        var response = await _client.PostAsync($"/books/{nonExistentBookId}/reservations", null);
+
+        // THEN the response should be 404 Not Found
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
 }
