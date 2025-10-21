@@ -40,7 +40,7 @@ public class Reservation
         Id = Guid.NewGuid();
         BookId = bookId;
         UserId = userId;
-        ReservedAt = DateTime.Now;
+        ReservedAt = DateTime.UtcNow;
         Status = ReservationStatus.Active;
     }
     

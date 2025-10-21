@@ -13,10 +13,9 @@ public class ReservationRepository : IReservationRepository
         var database = mongoClient.GetDatabase(dbSettings.Value.DatabaseName);
         _reservationsCollection = database.GetCollection<Reservation>("reservations");
     }
-        public Task AddAsync(Reservation reservation)
+        public async Task AddAsync(Reservation reservation)
     {
-        // To be implemented
-        throw new NotImplementedException();
+        await _reservationsCollection.InsertOneAsync(reservation);
     }
 
     public Task<IEnumerable<Reservation>> GetByBookIdAsync(Guid bookId)
