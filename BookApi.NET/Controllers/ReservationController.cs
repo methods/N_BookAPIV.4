@@ -28,9 +28,13 @@ public class ReservationController : ReservationsControllerBase
         throw new NotImplementedException();
     }
 
-    public override Task<ActionResult<ReservationOutput>> ReservationsGet([BindRequired] Guid bookId, [BindRequired] Guid reservationId)
+    public override async Task<ActionResult<ReservationOutput>> ReservationsGet([BindRequired] Guid bookId, [BindRequired] Guid reservationId)
     {
-        throw new NotImplementedException();
+        var reservation = await _reservationService.GetReservationByIdAsync(bookId, reservationId);
+
+        var reservationOutput = _reservationMapper.ToReservationOutput(reservation);
+
+        return reservationOutput;
     }
 
     public override async Task<ActionResult<ReservationOutput>> ReservationsPost([BindRequired] Guid bookId)

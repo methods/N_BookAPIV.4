@@ -78,4 +78,33 @@ public class ReservationsControllerIntegrationTests : IClassFixture<WebApplicati
         // THEN the response should be 404 Not Found
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
+
+    [Fact]
+    public async Task GetReservationById_WhenReservationExists_ReturnsOkAndReservation()
+    {
+        // GIVEN a book and a reservation for it exist in the database
+        using var scope = _factory.Services.CreateScope();
+        var bookRepository = scope.ServiceProvider.GetRequiredService<IBookRepository>();
+        var reservationRepository = scope.ServiceProvider.GetRequiredService<IReservationRepository>();
+
+        var testBook = new Book("Test Book", "Test Author", "Test Synopsis");
+        await bookRepository.CreateAsync(testBook);
+
+        var testReservation = new Reservation(testBook.Id, TestUserId);
+        await reservationRepository.AddAsync(testReservation);
+
+        // WHEN the GET reservation endpoint is called with the correct IDs
+        var response = await _client.GetAsync($"/books/{testBook.Id}/reservations/{testReservation.Id}");
+
+        // THEN the response status should be 200 OK
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        
+        // AND the response body should contain the correct reservation details
+        var reservationOutput = await response.Content.ReadFromJsonAsync<ReservationOutput>();
+        Assert.NotNull(reservationOutput);
+        Assert.Equal(testReservation.Id, reservationOutput.Id);
+        Assert.Equal(testBook.Id, reservationOutput.BookId);
+        Assert.Equal(TestUserId, reservationOutput.UserId);
+        Assert.Equal("Active", reservationOutput.State);
+    }
 }

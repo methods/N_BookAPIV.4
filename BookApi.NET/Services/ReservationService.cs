@@ -12,8 +12,6 @@ public class ReservationService
     private readonly IReservationRepository _reservationRepository;
     private readonly IBookRepository _bookRepository;
 
-    // TODO: This hardcoded userId must be removed when Auth implementation is added
-
     public ReservationService(IBookRepository bookRepository, IReservationRepository reservationRepository)
     {
         _bookRepository = bookRepository;
@@ -34,6 +32,17 @@ public class ReservationService
         var reservation = new Reservation(bookId, userId);
 
         await _reservationRepository.AddAsync(reservation);
+
+        return reservation;
+    }
+
+    public async Task<Reservation> GetReservationByIdAsync(Guid bookId, Guid reservationId)
+    {
+        var reservation = await _reservationRepository.GetByIdAsync(reservationId);
+        if (reservation is null || reservation.BookId != bookId)
+        {
+            throw new ReservationNotFoundException(reservationId);
+        }
 
         return reservation;
     }

@@ -106,14 +106,14 @@ public class BookServiceUnitTests
     [InlineData("Valid Title", null, "Should fail with null author")]
     [InlineData("Valid Title", "", "Should fail with empty author")]
     [InlineData("Valid Title", "   ", "Should fail with whitespace author")]
-    public async Task CreateBookAsync_WithInvalidBookInput_ThrowsArgumentException(string title, string author, string reason)
+    public async Task CreateBookAsync_WithInvalidBookInput_ThrowsArgumentException(string? title, string? author, string reason)
     {
         // GIVEN an invalid BookInput object
         var invalidBookInput = new BookInput
         {
             Title = $"{title}",
             Author = $"{author}",
-            Synopsis = "Test Synopsis"
+            Synopsis = $"{reason}"
         };
 
         // WHEN the service method is called
