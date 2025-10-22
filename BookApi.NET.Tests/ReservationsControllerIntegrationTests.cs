@@ -63,7 +63,6 @@ public class ReservationsControllerIntegrationTests : IClassFixture<WebApplicati
         Assert.NotNull(response.Headers.Location);
         string expectedLocation = $"/books/{bookId}/reservations/{responseBody.Id}";
         Assert.EndsWith(expectedLocation, response.Headers.Location.ToString());
-        Console.WriteLine(response.Headers.Location.ToString());
     }
 
     [Fact]
@@ -83,28 +82,68 @@ public class ReservationsControllerIntegrationTests : IClassFixture<WebApplicati
     public async Task GetReservationById_WhenReservationExists_ReturnsOkAndReservation()
     {
         // GIVEN a book and a reservation for it exist in the database
-        using var scope = _factory.Services.CreateScope();
-        var bookRepository = scope.ServiceProvider.GetRequiredService<IBookRepository>();
+        var book = await CreateBookInDbAsync("A Book With No Reservations");
+        using var scope = _factory.Services.CreateScope();;
         var reservationRepository = scope.ServiceProvider.GetRequiredService<IReservationRepository>();
-
-        var testBook = new Book("Test Book", "Test Author", "Test Synopsis");
-        await bookRepository.CreateAsync(testBook);
-
-        var testReservation = new Reservation(testBook.Id, TestUserId);
+        var testReservation = new Reservation(book.Id, TestUserId);
         await reservationRepository.AddAsync(testReservation);
 
         // WHEN the GET reservation endpoint is called with the correct IDs
-        var response = await _client.GetAsync($"/books/{testBook.Id}/reservations/{testReservation.Id}");
+        var response = await _client.GetAsync($"/books/{book.Id}/reservations/{testReservation.Id}");
 
         // THEN the response status should be 200 OK
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        
+
         // AND the response body should contain the correct reservation details
         var reservationOutput = await response.Content.ReadFromJsonAsync<ReservationOutput>();
         Assert.NotNull(reservationOutput);
         Assert.Equal(testReservation.Id, reservationOutput.Id);
-        Assert.Equal(testBook.Id, reservationOutput.BookId);
+        Assert.Equal(book.Id, reservationOutput.BookId);
         Assert.Equal(TestUserId, reservationOutput.UserId);
         Assert.Equal("Active", reservationOutput.State);
     }
+
+    [Fact]
+    public async Task GetReservationById_WhenReservationDoesNotExist_ReturnsNotFound()
+    {
+        // GIVEN a book exists in the database
+        var book = await CreateBookInDbAsync("A Book With No Reservations");
+        // AND a non-existent reservation ID
+        var nonExistentReservationId = Guid.NewGuid();
+
+        // WHEN the GET endpoint is called with the non-existent reservationId
+        var response = await _client.GetAsync($"/books/{book.Id}/reservations/{nonExistentReservationId}");
+
+        // THEN the response status should be 404 Not Found
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetReservationById_WhenBookIdDoesNotMatch_ReturnsNotFound()
+    {
+        // GIVEN two different books, and a reservation for the first book
+        var book1 = await CreateBookInDbAsync("Book One");
+        var book2 = await CreateBookInDbAsync("Book Two");
+
+        using var scope = _factory.Services.CreateScope();
+        var reservationRepository = scope.ServiceProvider.GetRequiredService<IReservationRepository>();
+        var reservationForBook1 = new Reservation(book1.Id, TestUserId);
+        await reservationRepository.AddAsync(reservationForBook1);
+
+        // WHEN the GET endpoint is called for book2, but with the reservationId from book1
+        var response = await _client.GetAsync($"/books/{book2.Id}/reservations/{reservationForBook1.Id}");
+
+        // THEN the response status should be 404 Not Found
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    // Helper method to reduce test setup duplication
+    private async Task<Book> CreateBookInDbAsync(string title)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var bookRepository = scope.ServiceProvider.GetRequiredService<IBookRepository>();
+        var book = new Book(title, "Test Author", "Synopsis");
+        await bookRepository.CreateAsync(book);
+        return book;
+    }   
 }
