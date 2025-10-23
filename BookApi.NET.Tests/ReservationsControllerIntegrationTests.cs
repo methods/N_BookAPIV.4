@@ -137,7 +137,85 @@ public class ReservationsControllerIntegrationTests : IClassFixture<WebApplicati
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    // Helper method to reduce test setup duplication
+    [Fact]
+    public async Task CancelReservation_WhenReservationExistsAndIsActive_ReturnsOkAndCancelledReservation()
+    {
+        // GIVEN a book and an active reservation for it in the database
+        var book = await CreateBookInDbAsync("Book to Cancel");
+        var reservation = new Reservation(book.Id, TestUserId);
+        Assert.Equal(ReservationStatus.Active, reservation.Status); // Check the reservation's status is set to active
+        using var scope = _factory.Services.CreateScope();          // Add the reservation to the database
+        var reservationRepository = scope.ServiceProvider.GetRequiredService<IReservationRepository>();
+        await reservationRepository.AddAsync(reservation);
+
+        // WHEN the Delete endpoint is called
+        var response = await _client.DeleteAsync($"/books/{book.Id}/reservations/{reservation.Id}");
+
+        // THEN the response status code should be 200 OK
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        // AND the response body should show the reservation is now cancelled
+        var cancelledReservationDto = await response.Content.ReadFromJsonAsync<ReservationOutput>();
+        Assert.NotNull(cancelledReservationDto);
+        Assert.Equal(reservation.Id, cancelledReservationDto.Id);
+        Assert.Equal("Cancelled", cancelledReservationDto.State);
+
+        // AND the reservation in the database should be updated to Cancelled
+        var dbReservation = await reservationRepository.GetByIdAsync(reservation.Id);
+        Assert.NotNull(dbReservation);
+        Assert.Equal(ReservationStatus.Cancelled, dbReservation.Status);
+    }
+
+    [Fact]
+    public async Task CancelReservation_WhenReservationDoesNotExist_ReturnsNotFound()
+    {
+        // GIVEN a book exists, but the reservation ID does not
+        var book = await CreateBookInDbAsync("A Book");
+        var nonExistentReservationId = Guid.NewGuid();
+
+        // WHEN the DELETE endpoint is called
+        var response = await _client.DeleteAsync($"/books/{book.Id}/reservations/{nonExistentReservationId}");
+
+        // THEN the response should be 404 Not Found
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CancelReservation_WhenBookIdDoesNotMatch_ReturnsNotFound()
+    {
+        // GIVEN two books, and a reservation for the first one
+        var book1 = await CreateBookInDbAsync("Book One");
+        var book2 = await CreateBookInDbAsync("Book Two");
+        var reservationForBook1 = await CreateReservationInDbAsync(book1.Id, TestUserId);
+
+        // WHEN the DELETE endpoint is called on book2 with the reservation from book1
+        var response = await _client.DeleteAsync($"/books/{book2.Id}/reservations/{reservationForBook1.Id}");
+
+        // THEN the response should be 404 Not Found
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CancelReservation_WhenReservationIsAlreadyCancelled_ReturnsConflict()
+    {
+        // GIVEN a book with a reservation that is already cancelled
+        var book = await CreateBookInDbAsync("A Book");
+        var reservation = await CreateReservationInDbAsync(book.Id, TestUserId);
+        reservation.Cancel();
+        using var scope = _factory.Services.CreateScope();
+        var reservationRepository = scope.ServiceProvider.GetRequiredService<IReservationRepository>();
+        await reservationRepository.UpdateAsync(reservation);
+        
+        Assert.Equal(ReservationStatus.Cancelled, reservation.Status); // Sanity check to ensure the setup is correct
+
+        // WHEN the DELETE endpoint is called again on the already-cancelled reservation
+        var response = await _client.DeleteAsync($"/books/{book.Id}/reservations/{reservation.Id}");
+
+        // THEN the response status should be 409 Conflict
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    // Helper methods to reduce test setup duplication
     private async Task<Book> CreateBookInDbAsync(string title)
     {
         using var scope = _factory.Services.CreateScope();
@@ -145,5 +223,14 @@ public class ReservationsControllerIntegrationTests : IClassFixture<WebApplicati
         var book = new Book(title, "Test Author", "Synopsis");
         await bookRepository.CreateAsync(book);
         return book;
-    }   
+    }
+
+    private async Task<Reservation> CreateReservationInDbAsync(Guid bookId, Guid userId)
+{
+    using var scope = _factory.Services.CreateScope();
+    var reservationRepository = scope.ServiceProvider.GetRequiredService<IReservationRepository>();
+    var reservation = new Reservation(bookId, userId);
+    await reservationRepository.AddAsync(reservation);
+    return reservation;
+}
 }

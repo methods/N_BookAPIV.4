@@ -18,9 +18,14 @@ public class ReservationController : ReservationsControllerBase
         _reservationService = reservationService;
         _reservationMapper = reservationMapper;
     }
-    public override Task<ActionResult<ReservationOutput>> ReservationsDelete([BindRequired] Guid bookId, [BindRequired] Guid reservationId)
+    public override async Task<ActionResult<ReservationOutput>> ReservationsDelete([BindRequired] Guid bookId, [BindRequired] Guid reservationId)
     {
-        throw new NotImplementedException();
+        // TODO: Check if the authenticated user is the owner of the reservation
+        var cancelledReservation = await _reservationService.CancelReservationAsync(bookId, reservationId);
+
+        var reservationDto = _reservationMapper.ToReservationOutput(cancelledReservation);
+
+        return Ok(reservationDto);
     }
 
     public override Task<ActionResult<ReservationListResponse>> ReservationsGet([FromQuery] int? offset, [FromQuery] int? limit, [FromQuery] Guid? userId)

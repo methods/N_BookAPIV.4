@@ -35,7 +35,34 @@ public class ReservationServiceUnitTests
 
         // WHEN the service function is called with the correct ReservationId but the wrong BookId
         // THEN a ReservationNotFound exception should be thrown
-        await Assert.ThrowsAsync<ReservationNotFoundException>(() => 
+        await Assert.ThrowsAsync<ReservationNotFoundException>(() =>
             _mockReservationService.GetReservationByIdAsync(differentBookId, mockReservation.Id));
+    }
+    
+    [Fact]
+    public async Task CancelReservationAsync_WhenUpdateFailsAndReturnsNull_ThrowsInvalidOperationException()
+    {
+        // GIVEN a valid bookId and reservationId
+        var bookId = Guid.NewGuid();
+        var reservationId = Guid.NewGuid();
+        
+        // AND an existing active reservation
+        var existingReservation = new Reservation(bookId, Guid.NewGuid()) { Id = reservationId };
+
+        // AND the repository is configured to find the reservation successfully
+        _mockReservationRepository
+            .Setup(repo => repo.GetByIdAsync(reservationId))
+            .ReturnsAsync(existingReservation);
+        
+        // BUT the repository's UpdateAsync method is configured to fail by returning null
+        _mockReservationRepository
+            .Setup(repo => repo.UpdateAsync(It.IsAny<Reservation>()))
+            .ReturnsAsync((Reservation?)null);
+
+        // WHEN CancelReservationAsync is called
+        var act = () => _mockReservationService.CancelReservationAsync(bookId, reservationId);
+
+        // THEN it should throw an InvalidOperationException
+        await Assert.ThrowsAsync<InvalidOperationException>(act);
     }
 }

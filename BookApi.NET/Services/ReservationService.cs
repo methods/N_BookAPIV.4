@@ -47,4 +47,18 @@ public class ReservationService
         return reservation;
     }
 
+    public async Task<Reservation> CancelReservationAsync(Guid bookId, Guid reservationId)
+    {
+        var reservation = await GetReservationByIdAsync(bookId, reservationId);
+        reservation.Cancel();
+
+        var updatedReservationInDb = await _reservationRepository.UpdateAsync(reservation);
+        if (updatedReservationInDb is null || updatedReservationInDb.Status != ReservationStatus.Cancelled)
+        {
+            throw new InvalidOperationException($"Failed to update and retrieve reservation with ID {reservationId}");
+        }
+
+        return updatedReservationInDb;
+    }
+
 }

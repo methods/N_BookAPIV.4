@@ -17,9 +17,20 @@ public class ReservationRepository : IReservationRepository
     {
         await _reservationsCollection.InsertOneAsync(reservation);
     }
-    
+
     public async Task<Reservation?> GetByIdAsync(Guid Id) =>
         await _reservationsCollection.Find(x => x.Id == Id).FirstOrDefaultAsync();
+        
+    public async Task<Reservation?> UpdateAsync(Reservation reservation)
+    {
+        return await _reservationsCollection.FindOneAndReplaceAsync<Reservation>(
+        r => r.Id == reservation.Id,
+        reservation,
+        new FindOneAndReplaceOptions<Reservation>
+        {
+            ReturnDocument = ReturnDocument.After
+        });
+    }
 
     public Task<IEnumerable<Reservation>> GetByBookIdAsync(Guid bookId)
     {
