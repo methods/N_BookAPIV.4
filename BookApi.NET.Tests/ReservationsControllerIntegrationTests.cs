@@ -11,12 +11,12 @@ using Xunit.Abstractions;
 
 namespace BookApi.NET.Tests;
 
-public class ReservationsControllerIntegrationTests : IClassFixture<WebApplicationFactory<Program>>, IAsyncLifetime
+public class ReservationsControllerIntegrationTests : IClassFixture<BookApiWebFactory>, IAsyncLifetime
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly BookApiWebFactory _factory;
     private readonly HttpClient _client;
 
-    public ReservationsControllerIntegrationTests(WebApplicationFactory<Program> factory, ITestOutputHelper output)
+    public ReservationsControllerIntegrationTests(BookApiWebFactory factory, ITestOutputHelper output)
     {
         _factory = factory;
         _client = factory.CreateClient();
@@ -26,7 +26,7 @@ public class ReservationsControllerIntegrationTests : IClassFixture<WebApplicati
 
     public async Task InitializeAsync()
     {
-        await DatabaseTestHelper.CleanDatabaseAsync(_factory.Services);
+        await _factory.CleanDatabaseAsync();
     }
 
     public Task DisposeAsync() => Task.CompletedTask;

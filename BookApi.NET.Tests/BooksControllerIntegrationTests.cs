@@ -12,18 +12,18 @@ using Xunit.Abstractions;
 
 namespace BookApi.NET.Tests;
 
-public class BooksControllerIntegrationTests : IClassFixture<WebApplicationFactory<Program>>, IAsyncLifetime 
+public class BooksControllerIntegrationTests : IClassFixture<BookApiWebFactory>, IAsyncLifetime 
 {
     private readonly HttpClient _client;
-    private readonly WebApplicationFactory<Program> _factory;
-    public BooksControllerIntegrationTests(WebApplicationFactory<Program> factory, ITestOutputHelper output)
+    private readonly BookApiWebFactory _factory;
+    public BooksControllerIntegrationTests(BookApiWebFactory factory, ITestOutputHelper output)
     {
         _factory = factory;
         _client = factory.CreateClient();
     }
     public async Task InitializeAsync()
     {
-        await DatabaseTestHelper.CleanDatabaseAsync(_factory.Services);
+        await _factory.CleanDatabaseAsync();
     }
 
     public Task DisposeAsync() => Task.CompletedTask;
