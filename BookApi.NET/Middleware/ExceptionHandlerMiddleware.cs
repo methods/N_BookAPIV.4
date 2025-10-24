@@ -23,6 +23,16 @@ public class ExceptionHandlerMiddleware
             context.Response.StatusCode = (int)HttpStatusCode.NotFound;
             await context.Response.WriteAsJsonAsync(new { error = ex.Message });
         }
+        catch (ReservationNotFoundException ex)
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.NotFound;
+            await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.Conflict;
+            await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+        }
     }
 
 }
