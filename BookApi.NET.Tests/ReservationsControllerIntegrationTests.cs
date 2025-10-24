@@ -22,7 +22,8 @@ public class ReservationsControllerIntegrationTests : IClassFixture<BookApiWebFa
         _client = factory.CreateClient();
     }
 
-    private static readonly Guid TestUserId = new("11111111-1111-1111-1111-111111111111");
+    private static readonly Guid TestUserId1 = new("11111111-1111-1111-1111-111111111111");
+    private static readonly Guid TestUserId2 = new("22222222-2222-2222-2222-222222222222");
 
     public async Task InitializeAsync()
     {
@@ -44,7 +45,7 @@ public class ReservationsControllerIntegrationTests : IClassFixture<BookApiWebFa
 
         // AND a hard-coded userId
         // TODO: replace with a valid userId from user context once authentication is enabled
-        var userId = TestUserId;
+        var userId = TestUserId1;
 
         // WHEN the POST reservation endpoint is called
         var response = await _client.PostAsync($"/books/{bookId}/reservations", null);
@@ -85,7 +86,7 @@ public class ReservationsControllerIntegrationTests : IClassFixture<BookApiWebFa
         var book = await CreateBookInDbAsync("A Book With No Reservations");
         using var scope = _factory.Services.CreateScope();;
         var reservationRepository = scope.ServiceProvider.GetRequiredService<IReservationRepository>();
-        var testReservation = new Reservation(book.Id, TestUserId);
+        var testReservation = new Reservation(book.Id, TestUserId1);
         await reservationRepository.AddAsync(testReservation);
 
         // WHEN the GET reservation endpoint is called with the correct IDs
@@ -99,7 +100,7 @@ public class ReservationsControllerIntegrationTests : IClassFixture<BookApiWebFa
         Assert.NotNull(reservationOutput);
         Assert.Equal(testReservation.Id, reservationOutput.Id);
         Assert.Equal(book.Id, reservationOutput.BookId);
-        Assert.Equal(TestUserId, reservationOutput.UserId);
+        Assert.Equal(TestUserId1, reservationOutput.UserId);
         Assert.Equal("Active", reservationOutput.State);
     }
 
@@ -127,7 +128,7 @@ public class ReservationsControllerIntegrationTests : IClassFixture<BookApiWebFa
 
         using var scope = _factory.Services.CreateScope();
         var reservationRepository = scope.ServiceProvider.GetRequiredService<IReservationRepository>();
-        var reservationForBook1 = new Reservation(book1.Id, TestUserId);
+        var reservationForBook1 = new Reservation(book1.Id, TestUserId1);
         await reservationRepository.AddAsync(reservationForBook1);
 
         // WHEN the GET endpoint is called for book2, but with the reservationId from book1
@@ -142,7 +143,7 @@ public class ReservationsControllerIntegrationTests : IClassFixture<BookApiWebFa
     {
         // GIVEN a book and an active reservation for it in the database
         var book = await CreateBookInDbAsync("Book to Cancel");
-        var reservation = new Reservation(book.Id, TestUserId);
+        var reservation = new Reservation(book.Id, TestUserId1);
         Assert.Equal(ReservationStatus.Active, reservation.Status); // Check the reservation's status is set to active
         using var scope = _factory.Services.CreateScope();          // Add the reservation to the database
         var reservationRepository = scope.ServiceProvider.GetRequiredService<IReservationRepository>();
@@ -186,7 +187,7 @@ public class ReservationsControllerIntegrationTests : IClassFixture<BookApiWebFa
         // GIVEN two books, and a reservation for the first one
         var book1 = await CreateBookInDbAsync("Book One");
         var book2 = await CreateBookInDbAsync("Book Two");
-        var reservationForBook1 = await CreateReservationInDbAsync(book1.Id, TestUserId);
+        var reservationForBook1 = await CreateReservationInDbAsync(book1.Id, TestUserId1);
 
         // WHEN the DELETE endpoint is called on book2 with the reservation from book1
         var response = await _client.DeleteAsync($"/books/{book2.Id}/reservations/{reservationForBook1.Id}");
@@ -200,12 +201,12 @@ public class ReservationsControllerIntegrationTests : IClassFixture<BookApiWebFa
     {
         // GIVEN a book with a reservation that is already cancelled
         var book = await CreateBookInDbAsync("A Book");
-        var reservation = await CreateReservationInDbAsync(book.Id, TestUserId);
+        var reservation = await CreateReservationInDbAsync(book.Id, TestUserId1);
         reservation.Cancel();
         using var scope = _factory.Services.CreateScope();
         var reservationRepository = scope.ServiceProvider.GetRequiredService<IReservationRepository>();
         await reservationRepository.UpdateAsync(reservation);
-        
+
         Assert.Equal(ReservationStatus.Cancelled, reservation.Status); // Sanity check to ensure the setup is correct
 
         // WHEN the DELETE endpoint is called again on the already-cancelled reservation
@@ -213,6 +214,54 @@ public class ReservationsControllerIntegrationTests : IClassFixture<BookApiWebFa
 
         // THEN the response status should be 409 Conflict
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ListReservations_WhenReservationsExist_ReturnsFirstPageOfReservations()
+    {
+        // GIVEN 25 reservations exist in the database
+        var book1 = await CreateBookInDbAsync("Book One");
+        var book2 = await CreateBookInDbAsync("Book Two");
+        await CreateMultipleReservationsInDbAsync(15, book1.Id, TestUserId1); // 15 for user 1
+        await CreateMultipleReservationsInDbAsync(10, book2.Id, TestUserId2); // 10 for user 2
+
+        // WHEN a GET request is made to the /reservations endpoint
+        var response = await _client.GetAsync("/reservations");
+
+        // THEN the response status should be 200 OK
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        // AND the response body should be a paginated list
+        var listResponse = await response.Content.ReadFromJsonAsync<ReservationListResponse>();
+        Assert.NotNull(listResponse);
+        Assert.Equal(25, listResponse.TotalCount); // Total number of reservations in the DB
+        Assert.Equal(20, listResponse.Items.Count); // Default page size is 20
+        Assert.Equal(0, listResponse.Offset);
+        Assert.Equal(20, listResponse.Limit);
+    }
+    
+    [Fact]
+    public async Task ListReservations_WhenFilteredByUserId_ReturnsOnlyThatUsersReservations()
+    {
+        // GIVEN 15 reservations for TestUserId1 and 10 for TestUserId2
+        var book = await CreateBookInDbAsync("A Book");
+        await CreateMultipleReservationsInDbAsync(15, book.Id, TestUserId1);
+        await CreateMultipleReservationsInDbAsync(10, book.Id, TestUserId2);
+
+        // WHEN a GET request is made to the /reservations endpoint filtering by TestUserId1
+        var response = await _client.GetAsync($"/reservations?userId={TestUserId1}");
+
+        // THEN the response status should be 200 OK
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        // AND the response body should contain only the 15 reservations for TestUserId1
+        var listResponse = await response.Content.ReadFromJsonAsync<ReservationListResponse>();
+        Assert.NotNull(listResponse);
+        Assert.Equal(15, listResponse.TotalCount);
+        Assert.Equal(15, listResponse.Items.Count);
+        
+        // AND every item in the list must belong to TestUserId1
+        Assert.All(listResponse.Items, item => Assert.Equal(TestUserId1, item.UserId));
     }
 
     // Helper methods to reduce test setup duplication
@@ -226,11 +275,21 @@ public class ReservationsControllerIntegrationTests : IClassFixture<BookApiWebFa
     }
 
     private async Task<Reservation> CreateReservationInDbAsync(Guid bookId, Guid userId)
-{
-    using var scope = _factory.Services.CreateScope();
-    var reservationRepository = scope.ServiceProvider.GetRequiredService<IReservationRepository>();
-    var reservation = new Reservation(bookId, userId);
-    await reservationRepository.AddAsync(reservation);
-    return reservation;
-}
+    {
+        using var scope = _factory.Services.CreateScope();
+        var reservationRepository = scope.ServiceProvider.GetRequiredService<IReservationRepository>();
+        var reservation = new Reservation(bookId, userId);
+        await reservationRepository.AddAsync(reservation);
+        return reservation;
+    }
+    private async Task CreateMultipleReservationsInDbAsync(int count, Guid bookId, Guid userId)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var reservationRepository = scope.ServiceProvider.GetRequiredService<IReservationRepository>();
+        for (int i = 0; i < count; i++)
+        {
+            await reservationRepository.AddAsync(new Reservation(bookId, userId));
+        }
+    }
+
 }

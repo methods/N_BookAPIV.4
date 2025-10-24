@@ -61,4 +61,10 @@ public class ReservationService
         return updatedReservationInDb;
     }
 
+    public async Task<(List<Reservation> Reservations, long TotalCount)> GetAllAsync(int offset, int limit, Guid? userId)
+    {
+        var reservationsListAndCount = await _reservationRepository.GetAllAsync(offset, limit, userId);
+        return reservationsListAndCount;
+    }
+
 }

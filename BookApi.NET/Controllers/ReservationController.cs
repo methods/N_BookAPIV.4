@@ -28,9 +28,16 @@ public class ReservationController : ReservationsControllerBase
         return Ok(reservationDto);
     }
 
-    public override Task<ActionResult<ReservationListResponse>> ReservationsGet([FromQuery] int? offset, [FromQuery] int? limit, [FromQuery] Guid? userId)
+    public override async Task<ActionResult<ReservationListResponse>> ReservationsGet([FromQuery] int? offset = 0, [FromQuery] int? limit = 20, [FromQuery] Guid? userId = null)
     {
-        throw new NotImplementedException();
+        int effectiveOffset = offset.GetValueOrDefault(0);
+        int effectiveLimit = limit.GetValueOrDefault(20);
+
+        var (reservations, totalCount) = await _reservationService.GetAllAsync(effectiveOffset, effectiveLimit, userId);
+
+        var responseDTO = _reservationMapper.ToReservationListResponse(reservations, totalCount, effectiveOffset, effectiveLimit);
+
+        return responseDTO;
     }
 
     public override async Task<ActionResult<ReservationOutput>> ReservationsGet([BindRequired] Guid bookId, [BindRequired] Guid reservationId)

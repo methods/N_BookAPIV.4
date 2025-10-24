@@ -16,4 +16,21 @@ public class ReservationMapper
             State = reservation.Status.ToString()
         };
     }
+
+    public ReservationListResponse ToReservationListResponse(
+            List<Reservation> reservations,
+            long totalCount,
+            int offset,
+            int limit)
+    {
+        var reservationDtos = reservations.Select(ToReservationOutput).ToList();
+
+        return new ReservationListResponse
+        {
+            Items = reservationDtos,
+            TotalCount = (int)totalCount,
+            Offset = offset,
+            Limit = limit
+        };
+    }
 }

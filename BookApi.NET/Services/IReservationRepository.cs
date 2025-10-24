@@ -7,6 +7,7 @@ public interface IReservationRepository
     Task AddAsync(Reservation reservation);
     Task<Reservation?> GetByIdAsync(Guid Id);
     Task<Reservation?> UpdateAsync(Reservation reservation);
+    Task<(List<Reservation> Reservations, long TotalCount)> GetAllAsync(int offset, int limit, Guid? userId);
 
     Task<IEnumerable<Reservation>> GetByBookIdAsync(Guid bookId);
 }
