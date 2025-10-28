@@ -5,20 +5,23 @@ using Xunit;
 using System;
 using System.Threading.Tasks;
 using BookApi.NET.Controllers.Generated;
+using MongoDB.Driver;
 
 namespace BookApi.NET.Tests;
 
 public class BookServiceUnitTests
 {
     private readonly Mock<IBookRepository> _mockBookRepository;
+    private readonly Mock<IReservationRepository> _mockReservationRepository;
 
     private readonly BookService _bookService;
 
     public BookServiceUnitTests()
     {
         _mockBookRepository = new Mock<IBookRepository>();
+        _mockReservationRepository = new Mock<IReservationRepository>();
 
-        _bookService = new BookService(_mockBookRepository.Object);
+        _bookService = new BookService(_mockBookRepository.Object, _mockReservationRepository.Object);
     }
 
     [Fact]
@@ -163,10 +166,16 @@ public class BookServiceUnitTests
     [Fact]
     public async Task DeleteBookAsync_WhenBookExists_CallsRepositoryDelete()
     {
-        // GIVEN a valid book ID
+        // GIVEN a valid book ID and Book
         var bookId = Guid.NewGuid();
+        var bookForDeletion = new Book("Old Title", "Old Author", "Old Synopsis") { Id = bookId };
 
-        // AND a mock repository that will report a successful deletion (returning true)
+        // AND a mock repository that will return the book object when queried if it exists
+        _mockBookRepository
+            .Setup(repo => repo.GetByIdAsync(bookId))
+            .ReturnsAsync(bookForDeletion);
+
+        // AND a mock repository that will return true when the DeleteAsync method is called
         _mockBookRepository
             .Setup(repo => repo.DeleteAsync(bookId))
             .ReturnsAsync(true);
@@ -175,7 +184,8 @@ public class BookServiceUnitTests
         await _bookService.DeleteBookAsync(bookId);
 
         // THEN no exception should have been thrown (implicit)
-        // AND the repository method should have been called once
+        // AND the repository method should have been called once for each method
+        _mockBookRepository.Verify(repo => repo.GetByIdAsync(bookId), Times.Once);
         _mockBookRepository.Verify(repo => repo.DeleteAsync(bookId), Times.Once);
     }
 
@@ -221,5 +231,33 @@ public class BookServiceUnitTests
         // AND the data returned by the service should match the data from the repository
         Assert.Equal(expectedBooks, resultBooks);
         Assert.Equal(expectedTotalCount, resultTotalCount);
+    }
+
+    [Fact]
+    public async Task DeleteBookAsync_WhenBookExists_AndHasReservations_ThrowsBookHasReservationsException()
+    {
+        // GIVEN a valid bookId and reservationId
+        var bookId = Guid.NewGuid();
+        var reservationId = Guid.NewGuid();
+
+        // AND an existing book and reservation for that book
+        var existingBook = new Book("Title", "Author", "Synopsis") { Id = bookId };
+        var existingReservation = new Reservation(bookId, Guid.NewGuid()) { Id = reservationId };
+
+        // AND a book repository that will return an existing book for that ID
+        _mockBookRepository
+            .Setup(repo => repo.GetByIdAsync(bookId))
+            .ReturnsAsync(existingBook);
+
+        // AND a reservation repository that will return true for HasReservationsForBookAsync
+        _mockReservationRepository
+            .Setup(repo => repo.HasReservationsForBookAsync(bookId))
+            .ReturnsAsync(true);
+
+        // WHEN the service method is called
+        // THEN a BookHasReservationsException should be thrown
+        await Assert.ThrowsAsync<BookHasReservationsException>( 
+            () => _bookService.DeleteBookAsync(bookId)
+        );
     }
 }

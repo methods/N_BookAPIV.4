@@ -7,6 +7,11 @@ public class ReservationNotFoundException : Exception
     public ReservationNotFoundException(Guid reservationId) : base($"Reservation not found with id: {reservationId}") { }
 }
 
+public class BookHasReservationsException : Exception
+{
+    public BookHasReservationsException(Guid bookId) : base($"Cannot delete book with ID {bookId} because it has active reservations.") { }
+}
+
 public class ReservationService
 {
     private readonly IReservationRepository _reservationRepository;

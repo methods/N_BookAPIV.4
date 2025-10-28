@@ -31,7 +31,7 @@ public class ReservationRepository : IReservationRepository
             ReturnDocument = ReturnDocument.After
         });
     }
-    
+
     public async Task<(List<Reservation> Reservations, long TotalCount)> GetAllAsync(int offset, int limit, Guid? userId)
     {
         var filter = Builders<Reservation>.Filter.Empty;
@@ -65,6 +65,11 @@ public class ReservationRepository : IReservationRepository
         var totalCount = aggregation.Facets.First(x => x.Name == "metadata").Output<AggregateCountResult>()?.FirstOrDefault()?.Count ?? 0;
 
         return (reservations, totalCount);
+    }
+    
+    public async Task<bool> HasReservationsForBookAsync(Guid bookId)
+    {
+        return await _reservationsCollection.Find(x => x.BookId == bookId).AnyAsync();
     }
 
     public Task<IEnumerable<Reservation>> GetByBookIdAsync(Guid bookId)
