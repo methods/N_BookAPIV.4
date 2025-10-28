@@ -11,10 +11,12 @@ public class BookNotFoundException : Exception
 public class BookService
 {
     private readonly IBookRepository _bookRepository;
+    private readonly IReservationRepository _reservationRepository;
 
-    public BookService(IBookRepository bookRepository)
+    public BookService(IBookRepository bookRepository, IReservationRepository reservationRepository)
     {
         _bookRepository = bookRepository;
+        _reservationRepository = reservationRepository;
     }
 
     public async Task<Book> GetBookByIdAsync(Guid Id)
@@ -49,11 +51,19 @@ public class BookService
 
     public async Task DeleteBookAsync(Guid Id)
     {
-        bool bookDeleted = await _bookRepository.DeleteAsync(Id);
-        if (!bookDeleted)
+        var book = await GetBookByIdAsync(Id);
+        if (book is null)
         {
             throw new BookNotFoundException(Id);
         }
+
+        // Also check if the Book has existing reservations before deleting
+        if (await _reservationRepository.HasReservationsForBookAsync(Id))
+        {
+            throw new BookHasReservationsException(Id);
+        }
+
+        await _bookRepository.DeleteAsync(Id);
     }
 
     public async Task<(List<Book> Books, long TotalCount)> GetBooksAsync(int offset, int limit)

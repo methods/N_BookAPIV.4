@@ -21,6 +21,7 @@ public class BooksControllerIntegrationTests : IClassFixture<BookApiWebFactory>,
         _factory = factory;
         _client = factory.CreateClient();
     }
+    private static readonly Guid TestUserId1 = new("11111111-1111-1111-1111-111111111111");
     public async Task InitializeAsync()
     {
         await _factory.CleanDatabaseAsync();
@@ -202,6 +203,33 @@ public class BooksControllerIntegrationTests : IClassFixture<BookApiWebFactory>,
         Assert.NotNull(responseBody.Items);
         Assert.Equal(5, responseBody.Items.Count);
         Assert.Equal("Book 6", responseBody.Items[0].Title);
+    }
+
+    [Fact]
+    public async Task DeleteBook_WhenBookExists_AndHasReservations_ReturnsConflict()
+    {
+        // GIVEN a book exists in the database
+        using var scope = _factory.Services.CreateScope();
+        var bookRepository = scope.ServiceProvider.GetRequiredService<IBookRepository>();
+        var reservationRepository = scope.ServiceProvider.GetRequiredService<IReservationRepository>();
+
+        Book testBook = new Book("Test Book", "Test Author", "Test Synopsis");
+        await bookRepository.CreateAsync(testBook);
+        var bookId = testBook.Id;
+
+        // AND a reservation for that book
+        Reservation reservation = new Reservation(bookId, TestUserId1);
+        await reservationRepository.AddAsync(reservation);
+
+        // WHEN a DELETE request is made to that book's Id
+        var response = await _client.DeleteAsync($"/books/{bookId}");
+
+        // THEN the response status code should be 409 Conflict
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+
+        // AND the book should still be in the database
+        var notDeletedBook = await bookRepository.GetByIdAsync(bookId);
+        Assert.NotNull(notDeletedBook);
     }
 }
 
