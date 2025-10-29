@@ -7,6 +7,21 @@ using Microsoft.Extensions.Options;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.AddAuthentication(Options =>
+    {
+        Options.DefaultScheme = Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme;
+        Options.DefaultChallengeScheme = Microsoft.AspNetCore.Authentication.Google.GoogleDefaults.AuthenticationScheme;
+    })
+    .AddCookie(Options =>
+    {
+        Options.LoginPath = "/auth/login";
+    })
+    .AddGoogle(Options =>
+    {
+        Options.ClientId = builder.Configuration["Google:ClientId"]!;
+        Options.ClientSecret = builder.Configuration["Google:ClientSecret"]!;
+    });
+builder.Services.AddAuthorization();
 builder.Services.AddControllers()
     .AddApplicationPart(typeof(Program).Assembly) 
     .AddNewtonsoftJson();
@@ -35,10 +50,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHttpsRedirection();
-}
+app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.UseMiddleware<ExceptionHandlerMiddleware>();
 
