@@ -45,7 +45,7 @@ public class ReservationsControllerIntegrationTests : IClassFixture<BookApiWebFa
 
         // AND a hard-coded userId
         // TODO: replace with a valid userId from user context once authentication is enabled
-        var userId = TestUserId1;
+        var userId = TestUsers.Admin.Id;
 
         // WHEN the POST reservation endpoint is called
         var response = await _client.PostAsync($"/books/{bookId}/reservations", null);

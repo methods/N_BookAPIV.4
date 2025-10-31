@@ -1,11 +1,13 @@
 using BookApi.NET.Controllers.Generated;
 using BookApi.NET.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace BookApi.NET.Controllers;
 
 [ApiController]
+[Authorize]
 public class ReservationController : ReservationsControllerBase
 {
     private readonly ReservationService _reservationService;
@@ -18,6 +20,7 @@ public class ReservationController : ReservationsControllerBase
         _reservationService = reservationService;
         _reservationMapper = reservationMapper;
     }
+    
     public override async Task<ActionResult<ReservationOutput>> ReservationsDelete([BindRequired] Guid bookId, [BindRequired] Guid reservationId)
     {
         // TODO: Check if the authenticated user is the owner of the reservation
@@ -51,7 +54,12 @@ public class ReservationController : ReservationsControllerBase
 
     public override async Task<ActionResult<ReservationOutput>> ReservationsPost([BindRequired] Guid bookId)
     {
-        var newReservation = await _reservationService.CreateReservationAsync(bookId, TestUserId);
+        var userIdString = User.FindFirst("internal_user_id")?.Value;
+        if (userIdString is null || !Guid.TryParse(userIdString, out var userId))
+        {
+            return Unauthorized("User ID claim not found.");
+        }
+        var newReservation = await _reservationService.CreateReservationAsync(bookId, userId);
 
         var reservationDto = _reservationMapper.ToReservationOutput(newReservation);
 

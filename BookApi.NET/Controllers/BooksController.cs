@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 namespace BookApi.NET.Controllers;
 
 [ApiController]
+[Authorize]
 public class BooksController : BooksControllerBase
 {
     private readonly BookService _bookService;
@@ -22,14 +23,13 @@ public class BooksController : BooksControllerBase
         _bookMapper = bookMapper;
     }
 
-    [Authorize]
     public override async Task<IActionResult> BooksDelete([BindRequired] Guid bookId)
     {
         await _bookService.DeleteBookAsync(bookId);
         return NoContent();
     }
 
-    [Authorize]
+    [AllowAnonymous]
     public override async Task<ActionResult<Generated.BookOutput>> BooksGet([BindRequired] Guid bookId)
     {
         var book = await _bookService.GetBookByIdAsync(bookId);
@@ -39,7 +39,7 @@ public class BooksController : BooksControllerBase
         return bookOutput;
     }
 
-    [Authorize]
+    [AllowAnonymous]
     public override async Task<ActionResult<Generated.BookListResponse>> BooksGet([FromQuery] int? offset = 0, [FromQuery] int? limit = 20)
     {
 
@@ -53,7 +53,6 @@ public class BooksController : BooksControllerBase
         return responseDTO;
     }
 
-    [Authorize]
     public override async Task<ActionResult<Generated.BookOutput>> BooksPost([BindRequired, FromBody] Generated.BookInput body)
     {
         var createdBook = await _bookService.CreateBookAsync(body);
@@ -63,7 +62,6 @@ public class BooksController : BooksControllerBase
         return CreatedAtAction(nameof(BooksGet), new { bookId = bookOutput.Id }, bookOutput);
     }
 
-    [Authorize]
     public override async Task<ActionResult<Generated.BookOutput>> BooksPut([BindRequired, FromBody] Generated.BookInput body, [BindRequired] Guid bookId)
     {
         var updatedBook = await _bookService.UpdateBookAsync(body, bookId);

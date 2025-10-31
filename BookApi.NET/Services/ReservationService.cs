@@ -24,7 +24,6 @@ public class ReservationService
         _reservationRepository = reservationRepository;
     }
 
-    [Authorize]
     public async Task<Reservation> CreateReservationAsync(Guid bookId, Guid userId)
     {
         // Check that the book exists
@@ -43,7 +42,6 @@ public class ReservationService
         return reservation;
     }
 
-    [Authorize]
     public async Task<Reservation> GetReservationByIdAsync(Guid bookId, Guid reservationId)
     {
         var reservation = await _reservationRepository.GetByIdAsync(reservationId);
@@ -55,7 +53,6 @@ public class ReservationService
         return reservation;
     }
 
-    [Authorize]
     public async Task<Reservation> CancelReservationAsync(Guid bookId, Guid reservationId)
     {
         var reservation = await GetReservationByIdAsync(bookId, reservationId);
@@ -70,7 +67,6 @@ public class ReservationService
         return updatedReservationInDb;
     }
 
-    [Authorize]
     public async Task<(List<Reservation> Reservations, long TotalCount)> GetAllAsync(int offset, int limit, Guid? userId)
     {
         var reservationsListAndCount = await _reservationRepository.GetAllAsync(offset, limit, userId);

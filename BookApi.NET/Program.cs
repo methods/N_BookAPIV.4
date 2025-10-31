@@ -4,6 +4,7 @@ using BookApi.NET.Middleware;
 using MongoDB.Driver;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,6 +27,19 @@ builder.Services.AddAuthentication(Options =>
     {
         Options.ClientId = builder.Configuration["Google:ClientId"]!;
         Options.ClientSecret = builder.Configuration["Google:ClientSecret"]!;
+        Options.Events.OnCreatingTicket = async context =>
+        {
+            var claimsPrincipal = context.Principal;
+            if (claimsPrincipal is null)
+            {
+                return;
+            }
+            var userService = context.HttpContext.RequestServices.GetRequiredService<UserService>();
+            var user = await userService.FindOrCreateUserAsync(claimsPrincipal);
+
+            var claimsIdentity = (ClaimsIdentity)claimsPrincipal.Identity!;
+            claimsIdentity.AddClaim(new Claim("internal_user_id", user.Id.ToString()));
+        };
     });
 builder.Services.AddAuthorization();
 builder.Services.AddControllers()
