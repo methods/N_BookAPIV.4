@@ -3,18 +3,24 @@ using BookApi.NET.Models;
 using BookApi.NET.Middleware;
 using MongoDB.Driver;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddAuthentication(Options =>
     {
-        Options.DefaultScheme = Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme;
-        Options.DefaultChallengeScheme = Microsoft.AspNetCore.Authentication.Google.GoogleDefaults.AuthenticationScheme;
+        Options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        Options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        Options.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
     })
     .AddCookie(Options =>
     {
-        Options.LoginPath = "/auth/login";
+        Options.Events.OnRedirectToLogin = context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        };
     })
     .AddGoogle(Options =>
     {
