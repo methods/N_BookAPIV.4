@@ -1,9 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using BookApi.NET.Controllers.Generated;
 using BookApi.NET.Models;
 using BookApi.NET.Services;
+using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -11,12 +13,12 @@ using Xunit.Abstractions;
 
 namespace BookApi.NET.Tests;
 
-public class ReservationsControllerIntegrationTests : IClassFixture<BookApiWebFactory>, IAsyncLifetime
+public class ReservationsControllerIntegrationTests : IClassFixture<AuthenticatedBookApiWebFactory>, IAsyncLifetime
 {
-    private readonly BookApiWebFactory _factory;
+    private readonly AuthenticatedBookApiWebFactory _factory;
     private readonly HttpClient _client;
 
-    public ReservationsControllerIntegrationTests(BookApiWebFactory factory, ITestOutputHelper output)
+    public ReservationsControllerIntegrationTests(AuthenticatedBookApiWebFactory factory, ITestOutputHelper output)
     {
         _factory = factory;
         _client = factory.CreateClient();
@@ -36,15 +38,10 @@ public class ReservationsControllerIntegrationTests : IClassFixture<BookApiWebFa
     public async Task CreateReservation_WhenBookExists_ReturnsCreatedAndReservation()
     {
         // GIVEN a book exists in the database
-        using var scope = _factory.Services.CreateScope();
-        var bookRepository = scope.ServiceProvider.GetRequiredService<IBookRepository>();
-
-        Book testBook = new Book("Test Book", "Test Author", "Test Synopsis");
-        await bookRepository.CreateAsync(testBook);
+        var testBook = await CreateBookViaApiAsync("Test Book");
         var bookId = testBook.Id;
 
-        // AND a hard-coded userId
-        // TODO: replace with a valid userId from user context once authentication is enabled
+        // AND an Admin userId from the test client
         var userId = TestUsers.Admin.Id;
 
         // WHEN the POST reservation endpoint is called
@@ -83,11 +80,9 @@ public class ReservationsControllerIntegrationTests : IClassFixture<BookApiWebFa
     public async Task GetReservationById_WhenReservationExists_ReturnsOkAndReservation()
     {
         // GIVEN a book and a reservation for it exist in the database
-        var book = await CreateBookInDbAsync("A Book With No Reservations");
-        using var scope = _factory.Services.CreateScope();;
-        var reservationRepository = scope.ServiceProvider.GetRequiredService<IReservationRepository>();
-        var testReservation = new Reservation(book.Id, TestUserId1);
-        await reservationRepository.AddAsync(testReservation);
+        var book = await CreateBookViaApiAsync("A Book With No Reservations");
+        var adminClient = _factory.CreateClient();
+        var testReservation = await CreateReservationViaApiAsync(adminClient, book.Id);
 
         // WHEN the GET reservation endpoint is called with the correct IDs
         var response = await _client.GetAsync($"/books/{book.Id}/reservations/{testReservation.Id}");
@@ -100,7 +95,7 @@ public class ReservationsControllerIntegrationTests : IClassFixture<BookApiWebFa
         Assert.NotNull(reservationOutput);
         Assert.Equal(testReservation.Id, reservationOutput.Id);
         Assert.Equal(book.Id, reservationOutput.BookId);
-        Assert.Equal(TestUserId1, reservationOutput.UserId);
+        Assert.Equal(testReservation.UserId, reservationOutput.UserId);
         Assert.Equal("Active", reservationOutput.State);
     }
 
@@ -108,7 +103,7 @@ public class ReservationsControllerIntegrationTests : IClassFixture<BookApiWebFa
     public async Task GetReservationById_WhenReservationDoesNotExist_ReturnsNotFound()
     {
         // GIVEN a book exists in the database
-        var book = await CreateBookInDbAsync("A Book With No Reservations");
+        var book = await CreateBookViaApiAsync("A Book With No Reservations");
         // AND a non-existent reservation ID
         var nonExistentReservationId = Guid.NewGuid();
 
@@ -123,8 +118,8 @@ public class ReservationsControllerIntegrationTests : IClassFixture<BookApiWebFa
     public async Task GetReservationById_WhenBookIdDoesNotMatch_ReturnsNotFound()
     {
         // GIVEN two different books, and a reservation for the first book
-        var book1 = await CreateBookInDbAsync("Book One");
-        var book2 = await CreateBookInDbAsync("Book Two");
+        var book1 = await CreateBookViaApiAsync("Book One");
+        var book2 = await CreateBookViaApiAsync("Book Two");
 
         using var scope = _factory.Services.CreateScope();
         var reservationRepository = scope.ServiceProvider.GetRequiredService<IReservationRepository>();
@@ -142,7 +137,7 @@ public class ReservationsControllerIntegrationTests : IClassFixture<BookApiWebFa
     public async Task CancelReservation_WhenReservationExistsAndIsActive_ReturnsOkAndCancelledReservation()
     {
         // GIVEN a book and an active reservation for it in the database
-        var book = await CreateBookInDbAsync("Book to Cancel");
+        var book = await CreateBookViaApiAsync("Book to Cancel");
         var reservation = new Reservation(book.Id, TestUserId1);
         Assert.Equal(ReservationStatus.Active, reservation.Status); // Check the reservation's status is set to active
         using var scope = _factory.Services.CreateScope();          // Add the reservation to the database
@@ -171,7 +166,7 @@ public class ReservationsControllerIntegrationTests : IClassFixture<BookApiWebFa
     public async Task CancelReservation_WhenReservationDoesNotExist_ReturnsNotFound()
     {
         // GIVEN a book exists, but the reservation ID does not
-        var book = await CreateBookInDbAsync("A Book");
+        var book = await CreateBookViaApiAsync("A Book");
         var nonExistentReservationId = Guid.NewGuid();
 
         // WHEN the DELETE endpoint is called
@@ -185,9 +180,10 @@ public class ReservationsControllerIntegrationTests : IClassFixture<BookApiWebFa
     public async Task CancelReservation_WhenBookIdDoesNotMatch_ReturnsNotFound()
     {
         // GIVEN two books, and a reservation for the first one
-        var book1 = await CreateBookInDbAsync("Book One");
-        var book2 = await CreateBookInDbAsync("Book Two");
-        var reservationForBook1 = await CreateReservationInDbAsync(book1.Id, TestUserId1);
+        var book1 = await CreateBookViaApiAsync("Book One");
+        var book2 = await CreateBookViaApiAsync("Book Two");
+        var adminClient = _factory.CreateClient();
+        var reservationForBook1 = await CreateReservationViaApiAsync(adminClient, book1.Id);
 
         // WHEN the DELETE endpoint is called on book2 with the reservation from book1
         var response = await _client.DeleteAsync($"/books/{book2.Id}/reservations/{reservationForBook1.Id}");
@@ -200,30 +196,59 @@ public class ReservationsControllerIntegrationTests : IClassFixture<BookApiWebFa
     public async Task CancelReservation_WhenReservationIsAlreadyCancelled_ReturnsConflict()
     {
         // GIVEN a book with a reservation that is already cancelled
-        var book = await CreateBookInDbAsync("A Book");
-        var reservation = await CreateReservationInDbAsync(book.Id, TestUserId1);
-        reservation.Cancel();
-        using var scope = _factory.Services.CreateScope();
-        var reservationRepository = scope.ServiceProvider.GetRequiredService<IReservationRepository>();
-        await reservationRepository.UpdateAsync(reservation);
-
-        Assert.Equal(ReservationStatus.Cancelled, reservation.Status); // Sanity check to ensure the setup is correct
+        var book = await CreateBookViaApiAsync("A Book");
+        var adminClient = _factory.CreateClient();
+        var reservation = await CreateReservationViaApiAsync(adminClient, book.Id);
+        var response = await _client.DeleteAsync($"/books/{book.Id}/reservations/{reservation.Id}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         // WHEN the DELETE endpoint is called again on the already-cancelled reservation
-        var response = await _client.DeleteAsync($"/books/{book.Id}/reservations/{reservation.Id}");
+        var secondResponse = await _client.DeleteAsync($"/books/{book.Id}/reservations/{reservation.Id}");
 
         // THEN the response status should be 409 Conflict
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, secondResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task ListReservations_WhenFilteredByUserId_ReturnsOnlyThatUsersReservations()
+    {
+        // GIVEN two different authenticated clients
+        var clientUser1 = _factory.CreateClientFor(TestUsers.User1);
+        var clientUser2 = _factory.CreateClientFor(TestUsers.User2);
+        var adminClient = _factory.CreateClient(); // Default client is the Admin
+
+        // AND a book created by the admin
+        var book = await CreateBookViaApiAsync("A Shared Book");
+
+        // AND reservations created by User 1 and User 2
+        for(int i=0; i<15; i++) { await CreateReservationViaApiAsync(clientUser1, book.Id); }
+        for(int i=0; i<10; i++) { await CreateReservationViaApiAsync(clientUser2, book.Id); }
+
+        // WHEN the admin GETs the reservations list, filtering by User 1's ID
+        var response = await adminClient.GetAsync($"/reservations?userId={TestUsers.User1.Id}");
+
+        // THEN the response should be successful and contain only User 1's 15 reservations
+        response.EnsureSuccessStatusCode();
+        var listResponse = await response.Content.ReadFromJsonAsync<ReservationListResponse>();
+        Assert.NotNull(listResponse);
+        Assert.Equal(15, listResponse.TotalCount);
+        Assert.All(listResponse.Items, item => Assert.Equal(TestUsers.User1.Id, item.UserId));
     }
 
     [Fact]
     public async Task ListReservations_WhenReservationsExist_ReturnsFirstPageOfReservations()
     {
-        // GIVEN 25 reservations exist in the database
-        var book1 = await CreateBookInDbAsync("Book One");
-        var book2 = await CreateBookInDbAsync("Book Two");
-        await CreateMultipleReservationsInDbAsync(15, book1.Id, TestUserId1); // 15 for user 1
-        await CreateMultipleReservationsInDbAsync(10, book2.Id, TestUserId2); // 10 for user 2
+        // GIVEN two different authenticated clients
+        var clientUser1 = _factory.CreateClientFor(TestUsers.User1);
+        var clientUser2 = _factory.CreateClientFor(TestUsers.User2);
+        var adminClient = _factory.CreateClient(); // Default client is the Admin
+
+        // AND a book created by the admin
+        var book = await CreateBookViaApiAsync("A Shared Book");
+
+        // AND 25 total reservations created by User 1 and User 2
+        for(int i=0; i<15; i++) { await CreateReservationViaApiAsync(clientUser1, book.Id); }
+        for(int i=0; i<10; i++) { await CreateReservationViaApiAsync(clientUser2, book.Id); }
 
         // WHEN a GET request is made to the /reservations endpoint
         var response = await _client.GetAsync("/reservations");
@@ -239,57 +264,33 @@ public class ReservationsControllerIntegrationTests : IClassFixture<BookApiWebFa
         Assert.Equal(0, listResponse.Offset);
         Assert.Equal(20, listResponse.Limit);
     }
-    
-    [Fact]
-    public async Task ListReservations_WhenFilteredByUserId_ReturnsOnlyThatUsersReservations()
-    {
-        // GIVEN 15 reservations for TestUserId1 and 10 for TestUserId2
-        var book = await CreateBookInDbAsync("A Book");
-        await CreateMultipleReservationsInDbAsync(15, book.Id, TestUserId1);
-        await CreateMultipleReservationsInDbAsync(10, book.Id, TestUserId2);
-
-        // WHEN a GET request is made to the /reservations endpoint filtering by TestUserId1
-        var response = await _client.GetAsync($"/reservations?userId={TestUserId1}");
-
-        // THEN the response status should be 200 OK
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-        // AND the response body should contain only the 15 reservations for TestUserId1
-        var listResponse = await response.Content.ReadFromJsonAsync<ReservationListResponse>();
-        Assert.NotNull(listResponse);
-        Assert.Equal(15, listResponse.TotalCount);
-        Assert.Equal(15, listResponse.Items.Count);
-        
-        // AND every item in the list must belong to TestUserId1
-        Assert.All(listResponse.Items, item => Assert.Equal(TestUserId1, item.UserId));
-    }
 
     // Helper methods to reduce test setup duplication
-    private async Task<Book> CreateBookInDbAsync(string title)
+    private async Task<BookOutput> CreateBookViaApiAsync(string title)
     {
-        using var scope = _factory.Services.CreateScope();
-        var bookRepository = scope.ServiceProvider.GetRequiredService<IBookRepository>();
-        var book = new Book(title, "Test Author", "Synopsis");
-        await bookRepository.CreateAsync(book);
-        return book;
-    }
-
-    private async Task<Reservation> CreateReservationInDbAsync(Guid bookId, Guid userId)
-    {
-        using var scope = _factory.Services.CreateScope();
-        var reservationRepository = scope.ServiceProvider.GetRequiredService<IReservationRepository>();
-        var reservation = new Reservation(bookId, userId);
-        await reservationRepository.AddAsync(reservation);
-        return reservation;
-    }
-    private async Task CreateMultipleReservationsInDbAsync(int count, Guid bookId, Guid userId)
-    {
-        using var scope = _factory.Services.CreateScope();
-        var reservationRepository = scope.ServiceProvider.GetRequiredService<IReservationRepository>();
-        for (int i = 0; i < count; i++)
+        var bookInput = new BookInput
         {
-            await reservationRepository.AddAsync(new Reservation(bookId, userId));
-        }
+            Title = title,
+            Author = "Test Author",
+            Synopsis = "A test synopsis."
+        };
+
+        var response = await _client.PostAsJsonAsync("/books", bookInput);
+        response.EnsureSuccessStatusCode();
+
+        var createdBook = await response.Content.ReadFromJsonAsync<BookOutput>();
+        Assert.NotNull(createdBook);
+        return createdBook;
     }
 
+    private async Task<ReservationOutput> CreateReservationViaApiAsync(HttpClient client, Guid bookId)
+    {
+        var response = await client.PostAsync($"/books/{bookId}/reservations", null);
+        response.EnsureSuccessStatusCode();
+        
+        var createdReservation = await response.Content.ReadFromJsonAsync<ReservationOutput>();
+        Assert.NotNull(createdReservation);
+
+        return createdReservation;
+    }
 }

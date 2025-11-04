@@ -12,11 +12,11 @@ using Xunit.Abstractions;
 
 namespace BookApi.NET.Tests;
 
-public class BooksControllerIntegrationTests : IClassFixture<BookApiWebFactory>, IAsyncLifetime 
+public class BooksControllerIntegrationTests : IClassFixture<AuthenticatedBookApiWebFactory>, IAsyncLifetime 
 {
     private readonly HttpClient _client;
-    private readonly BookApiWebFactory _factory;
-    public BooksControllerIntegrationTests(BookApiWebFactory factory, ITestOutputHelper output)
+    private readonly AuthenticatedBookApiWebFactory _factory;
+    public BooksControllerIntegrationTests(AuthenticatedBookApiWebFactory factory, ITestOutputHelper output)
     {
         _factory = factory;
         _client = factory.CreateClient();
