@@ -23,6 +23,7 @@ public class BooksController : BooksControllerBase
         _bookMapper = bookMapper;
     }
 
+    [Authorize(Roles = "Admin")]
     public override async Task<IActionResult> BooksDelete([BindRequired] Guid bookId)
     {
         await _bookService.DeleteBookAsync(bookId);

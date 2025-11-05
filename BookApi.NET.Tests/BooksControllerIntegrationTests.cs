@@ -164,8 +164,10 @@ public class BooksControllerIntegrationTests : IClassFixture<AuthenticatedBookAp
         await bookRepository.CreateAsync(testBook);
         var bookId = testBook.Id;
 
+        var adminClient = _factory.CreateClientFor(TestUsers.Admin);
+
         // WHEN a DELETE request is made to that book's Id
-        var response = await _client.DeleteAsync($"/books/{bookId}");
+        var response = await adminClient.DeleteAsync($"/books/{bookId}");
 
         // THEN the response status code should be 204 Deleted
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
@@ -230,6 +232,44 @@ public class BooksControllerIntegrationTests : IClassFixture<AuthenticatedBookAp
         // AND the book should still be in the database
         var notDeletedBook = await bookRepository.GetByIdAsync(bookId);
         Assert.NotNull(notDeletedBook);
+    }
+
+    [Fact]
+    public async Task DeleteBook_AsRegularUser_ReturnsForbidden()
+    {
+        // GIVEN a client authenticated as regular user
+        var regUserClient = _factory.CreateClientFor(TestUsers.User1);
+
+        // AND a book in the database
+        var book = await CreateBookViaApiAsync("Book to Delete");
+
+        // WHEN the regular user attempts to DELETE the book
+        var response = await regUserClient.DeleteAsync($"/books/{book.Id}");
+
+        // THEN the response status code should be 403 Forbidden
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+
+        // AND the book should still be in the database
+        var getResponse = await _client.GetAsync($"/books/{book.Id}");
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+    }
+
+    // Helper methods to reduce test setup duplication
+    private async Task<BookOutput> CreateBookViaApiAsync(string title)
+    {
+        var bookInput = new BookInput
+        {
+            Title = title,
+            Author = "Test Author",
+            Synopsis = "A test synopsis."
+        };
+
+        var response = await _client.PostAsJsonAsync("/books", bookInput);
+        response.EnsureSuccessStatusCode();
+
+        var createdBook = await response.Content.ReadFromJsonAsync<BookOutput>();
+        Assert.NotNull(createdBook);
+        return createdBook;
     }
 }
 

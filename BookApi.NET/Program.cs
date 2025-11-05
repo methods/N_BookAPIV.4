@@ -39,6 +39,7 @@ builder.Services.AddAuthentication(Options =>
 
             var claimsIdentity = (ClaimsIdentity)claimsPrincipal.Identity!;
             claimsIdentity.AddClaim(new Claim("internal_user_id", user.Id.ToString()));
+            claimsIdentity.AddClaim(new Claim(ClaimTypes.Role, user.Role));
         };
     });
 builder.Services.AddAuthorization();
