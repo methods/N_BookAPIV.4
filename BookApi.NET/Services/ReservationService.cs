@@ -1,4 +1,5 @@
 using BookApi.NET.Models;
+using Microsoft.AspNetCore.Authorization;
 
 namespace BookApi.NET.Services;
 

@@ -6,10 +6,13 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 using BookApi.NET.Services;
 using BookApi.NET.Models;
 using MongoDB.Driver;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace BookApi.NET.Controllers;
 
 [ApiController]
+[Authorize]
 public class BooksController : BooksControllerBase
 {
     private readonly BookService _bookService;
@@ -26,6 +29,7 @@ public class BooksController : BooksControllerBase
         return NoContent();
     }
 
+    [AllowAnonymous]
     public override async Task<ActionResult<Generated.BookOutput>> BooksGet([BindRequired] Guid bookId)
     {
         var book = await _bookService.GetBookByIdAsync(bookId);
@@ -35,6 +39,7 @@ public class BooksController : BooksControllerBase
         return bookOutput;
     }
 
+    [AllowAnonymous]
     public override async Task<ActionResult<Generated.BookListResponse>> BooksGet([FromQuery] int? offset = 0, [FromQuery] int? limit = 20)
     {
 
@@ -47,7 +52,6 @@ public class BooksController : BooksControllerBase
 
         return responseDTO;
     }
-
 
     public override async Task<ActionResult<Generated.BookOutput>> BooksPost([BindRequired, FromBody] Generated.BookInput body)
     {

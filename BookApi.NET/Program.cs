@@ -3,10 +3,45 @@ using BookApi.NET.Models;
 using BookApi.NET.Middleware;
 using MongoDB.Driver;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.AddAuthentication(Options =>
+    {
+        Options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        Options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        Options.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    })
+    .AddCookie(Options =>
+    {
+        Options.Events.OnRedirectToLogin = context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        };
+    })
+    .AddGoogle(Options =>
+    {
+        Options.ClientId = builder.Configuration["Google:ClientId"]!;
+        Options.ClientSecret = builder.Configuration["Google:ClientSecret"]!;
+        Options.Events.OnCreatingTicket = async context =>
+        {
+            var claimsPrincipal = context.Principal;
+            if (claimsPrincipal is null)
+            {
+                return;
+            }
+            var userService = context.HttpContext.RequestServices.GetRequiredService<UserService>();
+            var user = await userService.FindOrCreateUserAsync(claimsPrincipal);
+
+            var claimsIdentity = (ClaimsIdentity)claimsPrincipal.Identity!;
+            claimsIdentity.AddClaim(new Claim("internal_user_id", user.Id.ToString()));
+        };
+    });
+builder.Services.AddAuthorization();
 builder.Services.AddControllers()
     .AddApplicationPart(typeof(Program).Assembly) 
     .AddNewtonsoftJson();
@@ -35,10 +70,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHttpsRedirection();
-}
+app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.UseMiddleware<ExceptionHandlerMiddleware>();
 

@@ -4,10 +4,13 @@ using Microsoft.VisualBasic;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Driver;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.AspNetCore.Authentication;
+using System.Security.Claims;
 
 namespace BookApi.NET.Tests;
 
-public class BookApiWebFactory : WebApplicationFactory<Program>
+public class AuthenticatedBookApiWebFactory : WebApplicationFactory<Program>
 {
     public readonly String DatabaseName = $"book-api-test-db-{Guid.NewGuid()}";
 
@@ -20,6 +23,39 @@ public class BookApiWebFactory : WebApplicationFactory<Program>
                 ["BookstoreDbSettings:DatabaseName"] = DatabaseName
             });
         });
+
+        builder.ConfigureTestServices(services =>
+        {
+            var authDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(IAuthenticationService));
+            if (authDescriptor is not null)
+            {
+                services.Remove(authDescriptor);
+            }
+
+            services.AddAuthentication(options =>
+                {
+                    options.DefaultAuthenticateScheme = TestAuthHandler.AuthenticationScheme;
+                    options.DefaultScheme = TestAuthHandler.AuthenticationScheme;
+                    options.DefaultChallengeScheme = TestAuthHandler.AuthenticationScheme;
+                })
+                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.AuthenticationScheme, options =>
+                {
+                });
+        });
+    }
+
+    public HttpClient CreateClientFor(Models.User user)
+    {
+        var client = CreateClient();
+        // Add a default header to this specific HttpClient instance.
+        // Every request made by this client will now carry this header.
+        client.DefaultRequestHeaders.Add(TestAuthHandler.TestUserHeader, user.ExternalId);
+        return client;
+    }
+    
+    protected override void ConfigureClient(HttpClient client)
+    {
+        base.ConfigureClient(client);
     }
 
     public async Task CleanDatabaseAsync()

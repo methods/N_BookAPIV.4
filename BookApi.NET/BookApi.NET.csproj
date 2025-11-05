@@ -1,15 +1,17 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>39c15edb-63af-4dab-b172-1b763c2c3627</UserSecretsId>
   </PropertyGroup>
     <ItemGroup>
     <InternalsVisibleTo Include="BookApi.Tests" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="FluentAssertions" Version="8.7.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="9.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="9.0.9" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.9" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.8" />

@@ -34,3 +34,6 @@ jobs:
 
     - name: Test
       run: dotnet test BookApi.NET.Tests/BookApi.NET.Tests.csproj --no-build --verbosity normal
+      env: # <-- ADD THIS ENTIRE 'env' BLOCK
+        Google__ClientId: ${{ secrets.GOOGLE_CLIENT_ID }}
+        Google__ClientSecret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
