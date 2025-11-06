@@ -54,6 +54,7 @@ public class BooksController : BooksControllerBase
         return responseDTO;
     }
 
+    [Authorize(Roles = "Admin")]
     public override async Task<ActionResult<Generated.BookOutput>> BooksPost([BindRequired, FromBody] Generated.BookInput body)
     {
         var createdBook = await _bookService.CreateBookAsync(body);
@@ -63,6 +64,7 @@ public class BooksController : BooksControllerBase
         return CreatedAtAction(nameof(BooksGet), new { bookId = bookOutput.Id }, bookOutput);
     }
 
+    [Authorize(Roles = "Admin")]
     public override async Task<ActionResult<Generated.BookOutput>> BooksPut([BindRequired, FromBody] Generated.BookInput body, [BindRequired] Guid bookId)
     {
         var updatedBook = await _bookService.UpdateBookAsync(body, bookId);

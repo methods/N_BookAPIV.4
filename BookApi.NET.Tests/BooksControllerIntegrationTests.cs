@@ -164,10 +164,8 @@ public class BooksControllerIntegrationTests : IClassFixture<AuthenticatedBookAp
         await bookRepository.CreateAsync(testBook);
         var bookId = testBook.Id;
 
-        var adminClient = _factory.CreateClientFor(TestUsers.Admin);
-
         // WHEN a DELETE request is made to that book's Id
-        var response = await adminClient.DeleteAsync($"/books/{bookId}");
+        var response = await _client.DeleteAsync($"/books/{bookId}");
 
         // THEN the response status code should be 204 Deleted
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
@@ -237,7 +235,7 @@ public class BooksControllerIntegrationTests : IClassFixture<AuthenticatedBookAp
     [Fact]
     public async Task DeleteBook_AsRegularUser_ReturnsForbidden()
     {
-        // GIVEN a client authenticated as regular user
+        // GIVEN a client authenticated as a non-admin user
         var regUserClient = _factory.CreateClientFor(TestUsers.User1);
 
         // AND a book in the database
@@ -252,6 +250,57 @@ public class BooksControllerIntegrationTests : IClassFixture<AuthenticatedBookAp
         // AND the book should still be in the database
         var getResponse = await _client.GetAsync($"/books/{book.Id}");
         Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostBook_AsRegularUser_ReturnsForbidden()
+    {
+        // GIVEN a client authenticated as a non-admin user
+        var regUserClient = _factory.CreateClientFor(TestUsers.User1);
+
+        // AND a valid BookInput DTO
+        var bookInput = new BookInput
+        {
+            Title = "Test Book",
+            Author = "Test Author",
+            Synopsis = "A book that should not be created."
+        };
+
+        // WHEN the user attempts to POST the Book
+        var response = await regUserClient.PostAsJsonAsync("/books", bookInput);
+
+        // THEN the response status code should be 403 Forbidden
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateBook_AsRegularUser_ReturnsForbidden()
+    {
+        // GIVEN a client authenticated as a non-admin user
+        var regUserClient = _factory.CreateClientFor(TestUsers.User1);
+
+        // AND a book in the database
+        var book = await CreateBookViaApiAsync("Book to Stay Same");
+
+        // AND a valid BookInput DTO
+        var bookInput = new BookInput
+        {
+            Title = "Modified Book",
+            Author = "Modified Author",
+            Synopsis = "Modified Synopsis"
+        };
+
+        // WHEN the user attempts to modify the book via the PUT endpoint
+        var response = await regUserClient.PutAsJsonAsync($"/books/{book.Id}", bookInput);
+
+        // THEN the response status code should be 403 Forbidden
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+
+        // AND the book should be unmodified
+        var getResponse = await _client.GetAsync($"/books/{book.Id}");
+        var unmodifiedBook = await getResponse.Content.ReadFromJsonAsync<BookOutput>();
+        Assert.NotNull(unmodifiedBook);
+        Assert.Equal("Book to Stay Same", unmodifiedBook.Title);
     }
 
     // Helper methods to reduce test setup duplication
