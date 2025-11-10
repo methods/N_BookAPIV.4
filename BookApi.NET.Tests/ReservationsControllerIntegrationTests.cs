@@ -79,13 +79,57 @@ public class ReservationsControllerIntegrationTests : IClassFixture<Authenticate
     [Fact]
     public async Task GetReservationById_WhenReservationExists_ReturnsOkAndReservation()
     {
-        // GIVEN a book and a reservation for it exist in the database
+        // GIVEN a book and a regular user reservation for it exist in the database
         var book = await CreateBookViaApiAsync("A Book With No Reservations");
-        var adminClient = _factory.CreateClient();
-        var testReservation = await CreateReservationViaApiAsync(adminClient, book.Id);
+        var clientUser1 = _factory.CreateClientFor(TestUsers.User1);
+        var testReservation = await CreateReservationViaApiAsync(clientUser1, book.Id);
 
         // WHEN the GET reservation endpoint is called with the correct IDs
-        var response = await _client.GetAsync($"/books/{book.Id}/reservations/{testReservation.Id}");
+        var response = await clientUser1.GetAsync($"/books/{book.Id}/reservations/{testReservation.Id}");
+
+        // THEN the response status should be 200 OK
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        // AND the response body should contain the correct reservation details
+        var reservationOutput = await response.Content.ReadFromJsonAsync<ReservationOutput>();
+        Assert.NotNull(reservationOutput);
+        Assert.Equal(testReservation.Id, reservationOutput.Id);
+        Assert.Equal(book.Id, reservationOutput.BookId);
+        Assert.Equal(testReservation.UserId, reservationOutput.UserId);
+        Assert.Equal("Active", reservationOutput.State);
+    }
+
+    [Fact]
+    public async Task GetReservationById_WhenReservationExists_ButUserIsNotReservationOwner_ReturnsNotFound()
+    {
+        // GIVEN a book and a regular user reservation for it exist in the database
+        var book = await CreateBookViaApiAsync("A Book With No Reservations");
+        var clientUser1 = _factory.CreateClientFor(TestUsers.User1);
+        var testReservation = await CreateReservationViaApiAsync(clientUser1, book.Id);
+
+        // AND another regular user who is NOT the owner of the reservation
+        var clientUser2 = _factory.CreateClientFor(TestUsers.User2);
+
+        // WHEN the non-owner used calls the GET reservation endpointwith the correct IDs
+        var response = await clientUser2.GetAsync($"/books/{book.Id}/reservations/{testReservation.Id}");
+
+        // THEN the response status should be 404 Not Found
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+        [Fact]
+    public async Task GetReservationById_WhenReservationExists_AndUserIsNotOwnerButIsAdmin_ReturnsOkAndReservation()
+    {
+        // GIVEN a book and a regular user reservation for it exist in the database
+        var book = await CreateBookViaApiAsync("A Book With No Reservations");
+        var clientUser1 = _factory.CreateClientFor(TestUsers.User1);
+        var testReservation = await CreateReservationViaApiAsync(clientUser1, book.Id);
+
+        // AND a separate admin user client
+        var adminClient = _factory.CreateClient();
+
+        // WHEN the GET reservation endpoint is called with the correct IDs by the admin
+        var response = await adminClient.GetAsync($"/books/{book.Id}/reservations/{testReservation.Id}");
 
         // THEN the response status should be 200 OK
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -138,14 +182,11 @@ public class ReservationsControllerIntegrationTests : IClassFixture<Authenticate
     {
         // GIVEN a book and an active reservation for it in the database
         var book = await CreateBookViaApiAsync("Book to Cancel");
-        var reservation = new Reservation(book.Id, TestUserId1);
-        Assert.Equal(ReservationStatus.Active, reservation.Status); // Check the reservation's status is set to active
-        using var scope = _factory.Services.CreateScope();          // Add the reservation to the database
-        var reservationRepository = scope.ServiceProvider.GetRequiredService<IReservationRepository>();
-        await reservationRepository.AddAsync(reservation);
+        var clientUser1 = _factory.CreateClientFor(TestUsers.User1);
+        var reservation = await CreateReservationViaApiAsync(clientUser1, book.Id);
 
         // WHEN the Delete endpoint is called
-        var response = await _client.DeleteAsync($"/books/{book.Id}/reservations/{reservation.Id}");
+        var response = await clientUser1.DeleteAsync($"/books/{book.Id}/reservations/{reservation.Id}");
 
         // THEN the response status code should be 200 OK
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -157,9 +198,36 @@ public class ReservationsControllerIntegrationTests : IClassFixture<Authenticate
         Assert.Equal("Cancelled", cancelledReservationDto.State);
 
         // AND the reservation in the database should be updated to Cancelled
+        using var scope = _factory.Services.CreateScope();
+        var reservationRepository = scope.ServiceProvider.GetRequiredService<IReservationRepository>();
         var dbReservation = await reservationRepository.GetByIdAsync(reservation.Id);
         Assert.NotNull(dbReservation);
         Assert.Equal(ReservationStatus.Cancelled, dbReservation.Status);
+    }
+    
+    [Fact]
+    public async Task CancelReservation_WhenReservationExistsAndIsActive_ButUserIsNotOwner_ReturnsNotFound()
+    {
+        // GIVEN a book and an active reservation for it in the database
+        var book = await CreateBookViaApiAsync("Book to Cancel");
+        var clientUser1 = _factory.CreateClientFor(TestUsers.User1);
+        var reservation = await CreateReservationViaApiAsync(clientUser1, book.Id);
+
+        // AND another regular user who is NOT the owner of the reservation
+        var clientUser2 = _factory.CreateClientFor(TestUsers.User2);
+
+        // WHEN the Delete endpoint is called by the non-owner user
+        var response = await clientUser2.DeleteAsync($"/books/{book.Id}/reservations/{reservation.Id}");
+
+        // THEN the response status code should be Not Found
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        // AND the reservation in the database should still be Active
+        using var scope = _factory.Services.CreateScope(); 
+        var reservationRepository = scope.ServiceProvider.GetRequiredService<IReservationRepository>();
+        var dbReservation = await reservationRepository.GetByIdAsync(reservation.Id);
+        Assert.NotNull(dbReservation);
+        Assert.Equal(ReservationStatus.Active, dbReservation.Status);
     }
 
     [Fact]
@@ -247,11 +315,11 @@ public class ReservationsControllerIntegrationTests : IClassFixture<Authenticate
         var book = await CreateBookViaApiAsync("A Shared Book");
 
         // AND 25 total reservations created by User 1 and User 2
-        for(int i=0; i<15; i++) { await CreateReservationViaApiAsync(clientUser1, book.Id); }
-        for(int i=0; i<10; i++) { await CreateReservationViaApiAsync(clientUser2, book.Id); }
+        for (int i = 0; i < 15; i++) { await CreateReservationViaApiAsync(clientUser1, book.Id); }
+        for (int i = 0; i < 10; i++) { await CreateReservationViaApiAsync(clientUser2, book.Id); }
 
         // WHEN a GET request is made to the /reservations endpoint
-        var response = await _client.GetAsync("/reservations");
+        var response = await adminClient.GetAsync("/reservations");
 
         // THEN the response status should be 200 OK
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -263,6 +331,57 @@ public class ReservationsControllerIntegrationTests : IClassFixture<Authenticate
         Assert.Equal(20, listResponse.Items.Count); // Default page size is 20
         Assert.Equal(0, listResponse.Offset);
         Assert.Equal(20, listResponse.Limit);
+    }
+
+    [Fact]
+    public async Task ListReservations_AsRegularUser_ReturnsOnlyOwnReservations()
+    {
+        // GIVEN two different authenticated clients
+        var clientUser1 = _factory.CreateClientFor(TestUsers.User1);
+        var clientUser2 = _factory.CreateClientFor(TestUsers.User2);
+
+        // AND a book created by the admin
+        var book = await CreateBookViaApiAsync("A Shared Book");
+
+        // AND reservations created by User 1 and User 2
+        for (int i = 0; i < 15; i++) { await CreateReservationViaApiAsync(clientUser1, book.Id); }
+        for (int i = 0; i < 10; i++) { await CreateReservationViaApiAsync(clientUser2, book.Id); }
+
+        // WHEN User1 GETs the reservations list
+        var response = await clientUser1.GetAsync("/reservations");
+
+        // THEN the response should be successful and contain only User 1's 15 reservations
+        response.EnsureSuccessStatusCode();
+        var listResponse = await response.Content.ReadFromJsonAsync<ReservationListResponse>();
+        Assert.NotNull(listResponse);
+        Assert.Equal(15, listResponse.TotalCount);
+        Assert.All(listResponse.Items, item => Assert.Equal(TestUsers.User1.Id, item.UserId));
+    }
+
+    [Fact]
+    public async Task ListReservations_AsRegularUser_FilteredByOtherUserId_ReturnsOnlyOwnReservations()
+    {
+        // GIVEN two different authenticated clients
+        var clientUser1 = _factory.CreateClientFor(TestUsers.User1);
+        var clientUser2 = _factory.CreateClientFor(TestUsers.User2);
+        var adminClient = _factory.CreateClient(); // Default client is the Admin
+
+        // AND a book created by the admin
+        var book = await CreateBookViaApiAsync("A Shared Book");
+
+        // AND 25 total reservations created by User 1 and User 2
+        for (int i = 0; i < 15; i++) { await CreateReservationViaApiAsync(clientUser1, book.Id); }
+        for (int i = 0; i < 10; i++) { await CreateReservationViaApiAsync(clientUser2, book.Id); }
+
+        // WHEN User1 GET's the reservations list, FILTERED using User2's id
+        var response = await clientUser1.GetAsync($"/reservations?userId={TestUsers.User2.Id}");
+
+        // THEN the response should be successful, ignore the filter, and contain only User 1's 15 reservations
+        response.EnsureSuccessStatusCode();
+        var listResponse = await response.Content.ReadFromJsonAsync<ReservationListResponse>();
+        Assert.NotNull(listResponse);
+        Assert.Equal(15, listResponse.TotalCount);
+        Assert.All(listResponse.Items, item => Assert.Equal(TestUsers.User1.Id, item.UserId));
     }
 
     // Helper methods to reduce test setup duplication

@@ -43,6 +43,7 @@ builder.Services.AddAuthentication(Options =>
         };
     });
 builder.Services.AddAuthorization();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddControllers()
     .AddApplicationPart(typeof(Program).Assembly) 
     .AddNewtonsoftJson();
