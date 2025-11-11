@@ -1,5 +1,7 @@
+using System.Security.Claims;
 using BookApi.NET.Models;
 using BookApi.NET.Services;
+using Microsoft.AspNetCore.Http;
 using Moq;
 
 namespace BookApi.NET.Tests;
@@ -8,13 +10,15 @@ public class ReservationServiceUnitTests
 {
     private readonly Mock<IBookRepository> _mockBookRepository;
     private readonly Mock<IReservationRepository> _mockReservationRepository;
+    private readonly Mock<IHttpContextAccessor> _mockIHttpContextAccessor;
     private readonly ReservationService _mockReservationService;
 
     public ReservationServiceUnitTests()
     {
         _mockBookRepository = new Mock<IBookRepository>();
         _mockReservationRepository = new Mock<IReservationRepository>();
-        _mockReservationService = new ReservationService(_mockBookRepository.Object, _mockReservationRepository.Object);
+        _mockIHttpContextAccessor = new Mock<IHttpContextAccessor>();
+        _mockReservationService = new ReservationService(_mockBookRepository.Object, _mockReservationRepository.Object, _mockIHttpContextAccessor.Object);
     }
 
     [Fact]
@@ -45,9 +49,17 @@ public class ReservationServiceUnitTests
         // GIVEN a valid bookId and reservationId
         var bookId = Guid.NewGuid();
         var reservationId = Guid.NewGuid();
-        
+
+        // AND a test user
+        var adminUser = TestUsers.Admin;
+        var claims = TestUsers.CreateClaimsFor(adminUser);
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(claims));
+
         // AND an existing active reservation
-        var existingReservation = new Reservation(bookId, Guid.NewGuid()) { Id = reservationId };
+        var existingReservation = new Reservation(bookId, adminUser.Id) { Id = reservationId };
+        
+        // AND the HttpContextAccessor is configured to return our test user's principal
+        _mockIHttpContextAccessor.Setup(x => x.HttpContext!.User).Returns(principal);
 
         // AND the repository is configured to find the reservation successfully
         _mockReservationRepository

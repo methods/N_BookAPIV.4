@@ -5,6 +5,7 @@ using MongoDB.Driver;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using System.Security.Claims;
+using BookApi.NET.Common;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,10 +39,12 @@ builder.Services.AddAuthentication(Options =>
             var user = await userService.FindOrCreateUserAsync(claimsPrincipal);
 
             var claimsIdentity = (ClaimsIdentity)claimsPrincipal.Identity!;
-            claimsIdentity.AddClaim(new Claim("internal_user_id", user.Id.ToString()));
+            claimsIdentity.AddClaim(new Claim(CustomClaimTypes.InternalUserId, user.Id.ToString()));
+            claimsIdentity.AddClaim(new Claim(ClaimTypes.Role, user.Role));
         };
     });
 builder.Services.AddAuthorization();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddControllers()
     .AddApplicationPart(typeof(Program).Assembly) 
     .AddNewtonsoftJson();
@@ -53,10 +56,12 @@ builder.Services.AddSingleton<IMongoClient>(sp =>
     new MongoClient(sp.GetRequiredService<IOptions<BookstoreDbSettings>>().Value.ConnectionString));
 builder.Services.AddSingleton<IBookRepository, BookRepository>();
 builder.Services.AddSingleton<IReservationRepository, ReservationRepository>();
+builder.Services.AddSingleton<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ReservationService>();
 builder.Services.AddScoped<ReservationMapper>();
 builder.Services.AddScoped<BookService>();
 builder.Services.AddScoped<BookMapper>();
+builder.Services.AddScoped<UserService>();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();

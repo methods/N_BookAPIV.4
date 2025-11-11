@@ -52,10 +52,18 @@ public class AuthenticatedBookApiWebFactory : WebApplicationFactory<Program>
         client.DefaultRequestHeaders.Add(TestAuthHandler.TestUserHeader, user.ExternalId);
         return client;
     }
-    
+
     protected override void ConfigureClient(HttpClient client)
     {
         base.ConfigureClient(client);
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        using var scope = Services.CreateScope();
+        var client = scope.ServiceProvider.GetRequiredService<IMongoClient>();
+        await client.DropDatabaseAsync(DatabaseName);
+        await base.DisposeAsync();
     }
 
     public async Task CleanDatabaseAsync()

@@ -1,5 +1,8 @@
+using System.Security.Claims;
+using BookApi.NET.Common;
 using BookApi.NET.Models;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 
 namespace BookApi.NET.Services;
 
@@ -17,12 +20,16 @@ public class ReservationService
 {
     private readonly IReservationRepository _reservationRepository;
     private readonly IBookRepository _bookRepository;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public ReservationService(IBookRepository bookRepository, IReservationRepository reservationRepository)
+    public ReservationService(IBookRepository bookRepository, IReservationRepository reservationRepository, IHttpContextAccessor httpContextAccessor)
     {
         _bookRepository = bookRepository;
         _reservationRepository = reservationRepository;
+        _httpContextAccessor = httpContextAccessor;
     }
+
+    private ClaimsPrincipal GetCurrentUser() => _httpContextAccessor.HttpContext!.User;
 
     public async Task<Reservation> CreateReservationAsync(Guid bookId, Guid userId)
     {
@@ -50,6 +57,16 @@ public class ReservationService
             throw new ReservationNotFoundException(reservationId);
         }
 
+        var currentUser = GetCurrentUser();
+        var isUserOwner = reservation.UserId == Guid.Parse(currentUser.FindFirst(CustomClaimTypes.InternalUserId)!.Value);
+        var isUserAdmin = currentUser.IsInRole(AppRoles.Admin);
+
+        if (!isUserOwner && !isUserAdmin)
+        {
+            throw new ReservationNotFoundException(reservationId);
+        }
+
+
         return reservation;
     }
 
@@ -69,7 +86,25 @@ public class ReservationService
 
     public async Task<(List<Reservation> Reservations, long TotalCount)> GetAllAsync(int offset, int limit, Guid? userId)
     {
-        var reservationsListAndCount = await _reservationRepository.GetAllAsync(offset, limit, userId);
+        var currentUser = GetCurrentUser();
+        var isCurrentUserAdmin = currentUser.IsInRole(AppRoles.Admin);
+        Guid? userIdFilter;
+
+        if (isCurrentUserAdmin)
+        {
+            userIdFilter = userId;
+        }
+        else
+        {
+            var currentUserId = currentUser.FindFirst(CustomClaimTypes.InternalUserId)?.Value;
+            if (currentUserId is null)
+            {
+                throw new ApplicationException("User is authenticated but internal user ID claim is missing.");
+            }
+            userIdFilter = Guid.Parse(currentUserId);
+        }
+
+        var reservationsListAndCount = await _reservationRepository.GetAllAsync(offset, limit, userIdFilter);
         return reservationsListAndCount;
     }
 

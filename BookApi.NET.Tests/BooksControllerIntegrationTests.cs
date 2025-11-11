@@ -231,6 +231,104 @@ public class BooksControllerIntegrationTests : IClassFixture<AuthenticatedBookAp
         var notDeletedBook = await bookRepository.GetByIdAsync(bookId);
         Assert.NotNull(notDeletedBook);
     }
+
+    [Fact]
+    public async Task DeleteBook_AsRegularUser_ReturnsForbidden()
+    {
+        // GIVEN a client authenticated as a non-admin user
+        var regUserClient = _factory.CreateClientFor(TestUsers.User1);
+
+        // AND a book in the database
+        var book = await CreateBookViaApiAsync("Book to Delete");
+
+        // WHEN the regular user attempts to DELETE the book
+        var response = await regUserClient.DeleteAsync($"/books/{book.Id}");
+
+        // THEN the response should indicate access denied
+        Assert.True(
+            response.StatusCode == HttpStatusCode.Forbidden || 
+            response.StatusCode == HttpStatusCode.NotFound,
+            $"Expected Forbidden (403) or NotFound (404), but received {response.StatusCode}");
+
+        // AND the book should still be in the database
+        var getResponse = await _client.GetAsync($"/books/{book.Id}");
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostBook_AsRegularUser_ReturnsForbidden()
+    {
+        // GIVEN a client authenticated as a non-admin user
+        var regUserClient = _factory.CreateClientFor(TestUsers.User1);
+
+        // AND a valid BookInput DTO
+        var bookInput = new BookInput
+        {
+            Title = "Test Book",
+            Author = "Test Author",
+            Synopsis = "A book that should not be created."
+        };
+
+        // WHEN the user attempts to POST the Book
+        var response = await regUserClient.PostAsJsonAsync("/books", bookInput);
+
+        // THEN the response should indicate access denied
+        Assert.True(
+            response.StatusCode == HttpStatusCode.Forbidden || 
+            response.StatusCode == HttpStatusCode.NotFound,
+            $"Expected Forbidden (403) or NotFound (404), but received {response.StatusCode}");
+    }
+
+    [Fact]
+    public async Task UpdateBook_AsRegularUser_ReturnsForbidden()
+    {
+        // GIVEN a client authenticated as a non-admin user
+        var regUserClient = _factory.CreateClientFor(TestUsers.User1);
+
+        // AND a book in the database
+        var book = await CreateBookViaApiAsync("Book to Stay Same");
+
+        // AND a valid BookInput DTO
+        var bookInput = new BookInput
+        {
+            Title = "Modified Book",
+            Author = "Modified Author",
+            Synopsis = "Modified Synopsis"
+        };
+
+        // WHEN the user attempts to modify the book via the PUT endpoint
+        var response = await regUserClient.PutAsJsonAsync($"/books/{book.Id}", bookInput);
+
+        // THEN the response should indicate access denied
+        Assert.True(
+            response.StatusCode == HttpStatusCode.Forbidden || 
+            response.StatusCode == HttpStatusCode.NotFound,
+            $"Expected Forbidden (403) or NotFound (404), but received {response.StatusCode}");
+
+        // AND the book should be unmodified
+        var getResponse = await _client.GetAsync($"/books/{book.Id}");
+        var unmodifiedBook = await getResponse.Content.ReadFromJsonAsync<BookOutput>();
+        Assert.NotNull(unmodifiedBook);
+        Assert.Equal("Book to Stay Same", unmodifiedBook.Title);
+    }
+
+    // Helper methods to reduce test setup duplication
+    private async Task<BookOutput> CreateBookViaApiAsync(string title)
+    {
+        var bookInput = new BookInput
+        {
+            Title = title,
+            Author = "Test Author",
+            Synopsis = "A test synopsis."
+        };
+
+        var response = await _client.PostAsJsonAsync("/books", bookInput);
+        response.EnsureSuccessStatusCode();
+
+        var createdBook = await response.Content.ReadFromJsonAsync<BookOutput>();
+        Assert.NotNull(createdBook);
+        return createdBook;
+    }
 }
 
 public record ErrorDto(string Error);

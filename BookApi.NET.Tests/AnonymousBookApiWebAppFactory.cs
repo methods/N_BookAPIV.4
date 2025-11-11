@@ -22,6 +22,14 @@ public class AnonymousBookApiWebAppFactory : WebApplicationFactory<Program>
         });
     }
 
+    public override async ValueTask DisposeAsync()
+    {
+        using var scope = Services.CreateScope();
+        var client = scope.ServiceProvider.GetRequiredService<IMongoClient>();
+        await client.DropDatabaseAsync(DatabaseName);
+        await base.DisposeAsync();
+    }
+
     public async Task CleanDatabaseAsync()
     {
         using var scope = Services.CreateScope();
