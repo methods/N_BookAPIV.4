@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
 using System.Security.Claims;
+using BookApi.NET.Common;
 
 namespace BookApi.NET.Tests;
 
@@ -50,7 +51,7 @@ public static class TestUsers
 {
     // Make IDs stable and predictable
     public static readonly Models.User Admin = new("google-admin", "admin@test.com", "Test Admin")
-    { Id = Guid.Parse("11111111-1111-1111-1111-111111111111"), Role = "Admin" };
+    { Id = Guid.Parse("11111111-1111-1111-1111-111111111111"), Role = AppRoles.Admin };
 
     public static readonly Models.User User1 = new("google-user1", "user1@test.com", "User One")
     { Id = Guid.Parse("22222222-2222-2222-2222-222222222222") };
@@ -69,7 +70,7 @@ public static class TestUsers
         new Claim(ClaimTypes.NameIdentifier, user.ExternalId),
         new Claim(ClaimTypes.Email, user.Email),
         new Claim(ClaimsIdentity.DefaultNameClaimType, user.FullName),
-        new Claim("internal_user_id", user.Id.ToString()),
+        new Claim(CustomClaimTypes.InternalUserId, user.Id.ToString()),
         new Claim(ClaimTypes.Role, user.Role)
     };
 }

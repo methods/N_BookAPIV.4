@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using BookApi.NET.Common;
 using BookApi.NET.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -57,8 +58,8 @@ public class ReservationService
         }
 
         var currentUser = GetCurrentUser();
-        var isUserOwner = reservation.UserId == Guid.Parse(currentUser.FindFirst("internal_user_id")!.Value);
-        var isUserAdmin = currentUser.IsInRole("Admin");
+        var isUserOwner = reservation.UserId == Guid.Parse(currentUser.FindFirst(CustomClaimTypes.InternalUserId)!.Value);
+        var isUserAdmin = currentUser.IsInRole(AppRoles.Admin);
 
         if (!isUserOwner && !isUserAdmin)
         {
@@ -86,7 +87,7 @@ public class ReservationService
     public async Task<(List<Reservation> Reservations, long TotalCount)> GetAllAsync(int offset, int limit, Guid? userId)
     {
         var currentUser = GetCurrentUser();
-        var isCurrentUserAdmin = currentUser.IsInRole("Admin");
+        var isCurrentUserAdmin = currentUser.IsInRole(AppRoles.Admin);
         Guid? userIdFilter;
 
         if (isCurrentUserAdmin)
@@ -95,7 +96,7 @@ public class ReservationService
         }
         else
         {
-            var currentUserId = currentUser.FindFirst("internal_user_id")?.Value;
+            var currentUserId = currentUser.FindFirst(CustomClaimTypes.InternalUserId)?.Value;
             if (currentUserId is null)
             {
                 throw new ApplicationException("User is authenticated but internal user ID claim is missing.");

@@ -1,3 +1,4 @@
+using BookApi.NET.Common;
 using BookApi.NET.Controllers.Generated;
 using BookApi.NET.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -54,7 +55,7 @@ public class ReservationController : ReservationsControllerBase
 
     public override async Task<ActionResult<ReservationOutput>> ReservationsPost([BindRequired] Guid bookId)
     {
-        var userIdString = User.FindFirst("internal_user_id")?.Value;
+        var userIdString = User.FindFirst(CustomClaimTypes.InternalUserId)?.Value;
         if (userIdString is null || !Guid.TryParse(userIdString, out var userId))
         {
             return Unauthorized("User ID claim not found.");

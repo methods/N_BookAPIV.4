@@ -8,6 +8,7 @@ using BookApi.NET.Models;
 using MongoDB.Driver;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using BookApi.NET.Common;
 
 namespace BookApi.NET.Controllers;
 
@@ -23,7 +24,7 @@ public class BooksController : BooksControllerBase
         _bookMapper = bookMapper;
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = AppRoles.Admin)]
     public override async Task<IActionResult> BooksDelete([BindRequired] Guid bookId)
     {
         await _bookService.DeleteBookAsync(bookId);
@@ -54,7 +55,7 @@ public class BooksController : BooksControllerBase
         return responseDTO;
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = AppRoles.Admin)]
     public override async Task<ActionResult<Generated.BookOutput>> BooksPost([BindRequired, FromBody] Generated.BookInput body)
     {
         var createdBook = await _bookService.CreateBookAsync(body);
@@ -64,7 +65,7 @@ public class BooksController : BooksControllerBase
         return CreatedAtAction(nameof(BooksGet), new { bookId = bookOutput.Id }, bookOutput);
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = AppRoles.Admin)]
     public override async Task<ActionResult<Generated.BookOutput>> BooksPut([BindRequired, FromBody] Generated.BookInput body, [BindRequired] Guid bookId)
     {
         var updatedBook = await _bookService.UpdateBookAsync(body, bookId);
