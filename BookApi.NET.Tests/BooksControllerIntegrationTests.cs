@@ -29,15 +29,11 @@ public class BooksControllerIntegrationTests : IClassFixture<AuthenticatedBookAp
 
     public Task DisposeAsync() => Task.CompletedTask;
 
-    [Fact] // (4) The xUnit equivalent of @Test
+    [Fact]
     public async Task GetBookById_WhenBookExists_ReturnsOKAndBookContent()
     {
         // GIVEN a book exists in the database
-        using var scope = _factory.Services.CreateScope();
-        var bookRepository = scope.ServiceProvider.GetRequiredService<IBookRepository>();
-
-        Book testBook = new Book("Test Book", "Test Author", "Test Synopsis");
-        await bookRepository.CreateAsync(testBook);
+        var testBook = await CreateBookViaApiAsync("Test Book");
         var bookId = testBook.Id;
 
         // WHEN we call the GET /books/{id} endpoint
@@ -51,6 +47,17 @@ public class BooksControllerIntegrationTests : IClassFixture<AuthenticatedBookAp
         Assert.NotNull(responseBody);
         Assert.Equal(testBook.Title, responseBody.Title);
         Assert.Equal(testBook.Id, responseBody.Id);
+
+        // AND include HATEOAS links
+        Assert.NotNull(responseBody.Links);
+
+        // AND the should be correct
+        var expectedBaseUrl = _client.BaseAddress!.ToString().TrimEnd('/');
+        var expectedSelfLink = $"{expectedBaseUrl}/books/{bookId}";
+        var expectedReservationsLink = $"{expectedBaseUrl}/books/{bookId}/reservations";
+
+        Assert.Equal(expectedSelfLink, responseBody.Links.Self);
+        Assert.Equal(expectedReservationsLink, responseBody.Links.Reservations);
     }
 
     [Fact]
@@ -203,6 +210,39 @@ public class BooksControllerIntegrationTests : IClassFixture<AuthenticatedBookAp
         Assert.NotNull(responseBody.Items);
         Assert.Equal(5, responseBody.Items.Count);
         Assert.Equal("Book 6", responseBody.Items[0].Title);
+    }
+
+    [Fact]
+    public async Task GetBooks_ReturnsPaginatedBooks_WithHateoasLinksForEachBook()
+    {
+        // GIVEN two books exist in the database
+        var book1 = await CreateBookViaApiAsync("Book One");
+        var book2 = await CreateBookViaApiAsync("Book Two");
+
+        // WHEN the anonymous GET /books endpoint is called
+        var anonymousClient = _factory.CreateClient();
+        var response = await anonymousClient.GetAsync("/books");
+
+        // THEN the response should be successful
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var listResponse = await response.Content.ReadFromJsonAsync<BookListResponse>();
+        Assert.NotNull(listResponse);
+        Assert.Equal(2, listResponse.Items.Count);
+
+        // AND every book in the list must have correct HATEOAS links
+        var expectedBaseUrl = anonymousClient.BaseAddress!.ToString().TrimEnd('/');
+        
+        // Check the first book
+        var book1Dto = listResponse.Items.First(b => b.Id == book1.Id);
+        Assert.NotNull(book1Dto.Links);
+        Assert.Equal($"{expectedBaseUrl}/books/{book1.Id}", book1Dto.Links.Self);
+        Assert.Equal($"{expectedBaseUrl}/books/{book1.Id}/reservations", book1Dto.Links.Reservations);
+        
+        // Check the second book
+        var book2Dto = listResponse.Items.First(b => b.Id == book2.Id);
+        Assert.NotNull(book2Dto.Links);
+        Assert.Equal($"{expectedBaseUrl}/books/{book2.Id}", book2Dto.Links.Self);
+        Assert.Equal($"{expectedBaseUrl}/books/{book2.Id}/reservations", book2Dto.Links.Reservations);
     }
 
     [Fact]
